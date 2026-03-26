@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#3B82F6" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <title>내 건강 기록</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --primary: #3B82F6;
+      --primary-light: #EFF6FF;
+      --accent: #10B981;
+      --accent-light: #ECFDF5;
+      --warn: #F59E0B;
+      --warn-light: #FFFBEB;
+      --danger: #EF4444;
+      --bg: #F1F5F9;
+      --card: #FFFFFF;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --radius: 16px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+
+      /* Safe area for iPhone notch / Android cutout */
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+
+      /* Bottom nav height + safe area */
+      --bottom-nav-h: 60px;
+      --bottom-pad: calc(var(--bottom-nav-h) + var(--sab) + 12px);
+    }
+
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ════════════════════════════════
+       TOP HEADER
+    ════════════════════════════════ */
+    .top-header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding-top: var(--sat);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .top-header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 56px;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 700;
+      font-size: 17px;
+      color: var(--primary);
+    }
+    .header-logo svg { width: 26px; height: 26px; flex-shrink: 0; }
+    .header-avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3B82F6, #10B981);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    /* ════════════════════════════════
+       SCROLL CONTENT AREA
+    ════════════════════════════════ */
+    .content-area {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: var(--bottom-pad);
+    }
+
+    /* ════════════════════════════════
+       PANELS
+    ════════════════════════════════ */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ════════════════════════════════
+       BOTTOM NAV BAR
+    ════════════════════════════════ */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: calc(var(--bottom-nav-h) + var(--sab));
+      padding-bottom: var(--sab);
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      z-index: 200;
+      box-shadow: 0 -4px 20px rgba(0,0,0,.06);
+    }
+    .bottom-nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding-top: 10px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 500;
+      min-height: var(--bottom-nav-h);
+      transition: color .15s;
+      -webkit-user-select: none; user-select: none;
+    }
+    .bottom-nav-item svg {
+      width: 24px; height: 24px;
+      transition: transform .15s;
+    }
+    .bottom-nav-item.active {
+      color: var(--primary);
+    }
+    .bottom-nav-item.active svg {
+      transform: translateY(-1px);
+    }
+    .bottom-nav-item:active svg { transform: scale(.9); }
+
+    /* ════════════════════════════════
+       PAGE PADDING
+    ════════════════════════════════ */
+    .page {
+      padding: 20px 16px 0;
+    }
+
+    /* ════════════════════════════════
+       PAGE TITLE
+    ════════════════════════════════ */
+    .page-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 18px;
+      letter-spacing: -0.5px;
+    }
+
+    /* ════════════════════════════════
+       COUNTDOWN HERO CARD
+    ════════════════════════════════ */
+    .hero-card {
+      background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+      border-radius: 20px;
+      padding: 22px 20px;
+      color: white;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 8px 24px rgba(59,130,246,.35);
+    }
+    .hero-left h3 { font-size: 12px; font-weight: 500; opacity: .75; margin-bottom: 6px; }
+    .hero-left .big { font-size: 48px; font-weight: 900; line-height: 1; letter-spacing: -2px; }
+    .hero-left .unit { font-size: 13px; opacity: .8; margin-top: 4px; }
+    .hero-right { text-align: right; }
+    .hero-right .chemo-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .hero-right .chemo-date { font-size: 12px; opacity: .75; }
+    .cycle-pill {
+      display: inline-block;
+      margin-top: 10px;
+      background: rgba(255,255,255,.22);
+      backdrop-filter: blur(4px);
+      padding: 5px 14px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* ════════════════════════════════
+       SUMMARY SCROLL ROW
+    ════════════════════════════════ */
+    .summary-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+      margin-bottom: 20px;
+      /* hide scrollbar */
+      scrollbar-width: none;
+    }
+    .summary-scroll::-webkit-scrollbar { display: none; }
+    .summary-chip {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      flex-shrink: 0;
+      min-width: 130px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .chip-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .chip-icon.blue { background: var(--primary-light); }
+    .chip-icon.green { background: var(--accent-light); }
+    .chip-icon.amber { background: var(--warn-light); }
+    .chip-label { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-bottom: 2px; }
+    .chip-value { font-size: 18px; font-weight: 800; line-height: 1; }
+    .chip-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ════════════════════════════════
+       SECTION HEADER
+    ════════════════════════════════ */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .section-header h2 { font-size: 15px; font-weight: 700; }
+    .see-all { font-size: 13px; color: var(--primary); font-weight: 600; cursor: pointer; }
+
+    /* ════════════════════════════════
+       EVENT LIST
+    ════════════════════════════════ */
+    .event-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 14px;
+      border-radius: 14px;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      cursor: pointer;
+      transition: border-color .15s;
+      -webkit-user-select: none; user-select: none;
+    }
+    .event-item.today {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .event-item:active { opacity: .8; }
+    .event-date-block { text-align: center; min-width: 38px; }
+    .event-date-block .month { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+    .event-date-block .day { font-size: 20px; font-weight: 900; line-height: 1.1; }
+    .event-date-block.today-color .day { color: var(--primary); }
+    .event-divider { width: 1.5px; height: 32px; background: var(--border); border-radius: 2px; flex-shrink: 0; }
+    .event-body { flex: 1; min-width: 0; }
+    .event-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .event-sub { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .event-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 99px;
+      flex-shrink: 0;
+    }
+    .badge-chemo { background: #FEE2E2; color: #DC2626; }
+    .badge-check { background: #DBEAFE; color: #1D4ED8; }
+    .badge-consult { background: #F3E8FF; color: #7C3AED; }
+    .badge-today { background: var(--primary); color: white; }
+
+    /* ════════════════════════════════
+       MINI CHART CARD (home)
+    ════════════════════════════════ */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    /* ════════════════════════════════
+       CHARTS PAGE
+    ════════════════════════════════ */
+    .filter-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+      scrollbar-width: none;
+    }
+    .filter-scroll::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      padding: 6px 16px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      background: white;
+      cursor: pointer;
+      white-space: nowrap;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      transition: all .15s;
+    }
+    .filter-chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .chart-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .chart-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .chart-title { font-size: 14px; font-weight: 700; }
+    .chart-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .chart-latest { text-align: right; }
+    .chart-latest .val { font-size: 20px; font-weight: 800; line-height: 1; }
+    .chart-latest .unit { font-size: 11px; color: var(--text-muted); }
+    .chart-latest .change {
+      font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 99px;
+      margin-top: 3px; display: inline-block;
+    }
+    .change.up { background: #FEE2E2; color: #DC2626; }
+    .change.down { background: #DCFCE7; color: #15803D; }
+    .change.stable { background: #F1F5F9; color: #64748B; }
+
+    .range-bar {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 12px; font-size: 11px; color: var(--text-muted);
+    }
+    .range-track {
+      flex: 1; height: 6px; background: var(--border);
+      border-radius: 99px; position: relative; overflow: visible;
+    }
+    .range-normal { position: absolute; height: 100%; background: #DCFCE7; border-radius: 99px; }
+    .range-pointer {
+      position: absolute; top: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 0 2px var(--primary);
+      background: var(--primary);
+    }
+
+    /* ════════════════════════════════
+       SCHEDULE PAGE — CARD LIST (mobile-friendly, no table)
+    ════════════════════════════════ */
+    .schedule-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .schedule-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+    }
+    .schedule-card.done { opacity: .55; }
+    .schedule-card:active { opacity: .75; }
+    .sch-date { text-align: center; min-width: 42px; }
+    .sch-date .mon { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+    .sch-date .d { font-size: 20px; font-weight: 900; line-height: 1.1; }
+    .sch-divider { width: 1.5px; height: 36px; background: var(--border); border-radius: 2px; flex-shrink: 0; }
+    .sch-body { flex: 1; min-width: 0; }
+    .sch-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .sch-place { font-size: 11px; color: var(--text-muted); }
+    .sch-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+    .sch-status { font-size: 11px; font-weight: 600; }
+    .sch-status.done-s { color: var(--accent); }
+    .sch-status.today-s { color: var(--primary); }
+    .sch-status.upcoming { color: var(--warn); }
+
+    /* ════════════════════════════════
+       PROFILE PAGE
+    ════════════════════════════════ */
+    .profile-hero {
+      background: linear-gradient(135deg, #1E40AF, #3B82F6);
+      border-radius: 20px;
+      padding: 22px 20px;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 24px rgba(59,130,246,.3);
+    }
+    .prof-avatar {
+      width: 60px; height: 60px; border-radius: 50%;
+      background: rgba(255,255,255,.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .prof-name { font-size: 18px; font-weight: 800; margin-bottom: 3px; }
+    .prof-sub { font-size: 12px; opacity: .8; }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .info-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+    .info-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 5px; }
+    .info-value { font-size: 13px; font-weight: 700; line-height: 1.4; }
+
+    /* ════════════════════════════════
+       INOCRAS CHART CARD
+    ════════════════════════════════ */
+    .inocras-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .inocras-legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .inocras-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .inocras-leg-line {
+      display: inline-block;
+      width: 16px; height: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .inocras-leg-dashed {
+      display: inline-block;
+      width: 16px; height: 0;
+      border-top: 2.5px dashed #3B82F6;
+      flex-shrink: 0;
+    }
+    .inocras-latest-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 14px;
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    .inocras-latest-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .inocras-latest-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+    .inocras-latest-val   { font-size: 22px; font-weight: 900; line-height: 1; }
+    .inocras-latest-unit  { font-size: 10px; color: var(--text-muted); }
+    .inocras-latest-divider {
+      width: 1px; height: 36px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* ════════════════════════════════
+       TREATMENT TIMELINE (legacy — kept for CSS safety)
+    ════════════════════════════════ */
+    .tl-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .tl-legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .tl-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .tl-leg-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tl-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .tl-scroll::-webkit-scrollbar { display: none; }
+
+    /* outer wrapper — defines the 3-row grid: top / axis / bottom */
+    .tl-inner {
+      position: relative;
+      display: flex;
+      align-items: stretch;
+      min-width: max-content;
+      padding: 0 8px 0 4px;
+    }
+    /* the continuous horizontal line */
+    .tl-axis-line {
+      position: absolute;
+      top: 50%;
+      left: 0; right: 0;
+      height: 2px;
+      background: var(--border);
+      transform: translateY(-50%);
+      z-index: 0;
+    }
+    /* arrow cap */
+    .tl-arrow {
+      position: absolute;
+      right: -2px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    /* TODAY vertical marker */
+    .tl-now-col {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 2px;
+      margin: 0 4px;
+      flex-shrink: 0;
+      z-index: 2;
+    }
+    .tl-now-line {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: rgba(59,130,246,.18);
+    }
+    .tl-now-badge {
+      position: absolute;
+      top: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 5px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    /* each event column */
+    .tl-col {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 72px;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+    /* top half — BCG lives here */
+    .tl-top {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 2px;
+      min-height: 68px;
+    }
+    /* dot sits on the axis */
+    .tl-dot {
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      border: 2.5px solid white;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+    }
+    .tl-dot.bcg   { background: #3B82F6; box-shadow: 0 0 0 2px #3B82F6; }
+    .tl-dot.inocras-collect { background: #F97316; box-shadow: 0 0 0 2px #F97316; }
+    .tl-dot.result-neg { background: #10B981; box-shadow: 0 0 0 2px #10B981; }
+    .tl-dot.result-pos { background: #EF4444; box-shadow: 0 0 0 2px #EF4444; }
+    .tl-dot.result-pending { background: #94A3B8; box-shadow: 0 0 0 2px #94A3B8; }
+
+    /* bottom half — Inocras lives here */
+    .tl-bot {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 2px;
+      min-height: 68px;
+    }
+    .tl-connector {
+      width: 1.5px;
+      background: var(--border);
+      flex: 1;
+    }
+    .tl-event-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.3;
+      margin-bottom: 2px;
+    }
+    .tl-event-date {
+      font-size: 9px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .tl-result-pill {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 99px;
+      margin-top: 3px;
+    }
+    .pill-neg { background: #DCFCE7; color: #15803D; }
+    .pill-pos { background: #FEE2E2; color: #DC2626; }
+    .pill-pending { background: #F1F5F9; color: #64748B; }
+
+    /* 이노크라스 수치 행 */
+    .tl-val-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      margin-top: 3px;
+    }
+    .tl-val-item {
+      font-size: 9px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .tl-val-item b { font-weight: 800; }
+
+    /* ════════════════════════════════
+       CHEMO STATUS (stepper)
+    ════════════════════════════════ */
+    .chemo-status-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .cs-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cs-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 12px 0;
+    }
+    .cs-info { min-width: 52px; flex-shrink: 0; }
+    .cs-name { font-size: 12px; font-weight: 800; }
+    .cs-sub  { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+    /* 날짜 시계열 타임라인 */
+    .cs-timeline-scroll {
+      flex: 1;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      min-width: 0;
+    }
+    .cs-timeline-scroll::-webkit-scrollbar { display: none; }
+    .cs-tl-inner {
+      display: flex;
+      align-items: flex-start;
+      position: relative;
+      padding-top: 4px;
+      min-width: max-content;
+    }
+    .cs-tl-line {
+      position: absolute;
+      top: 9px;
+      left: 5px; right: 5px;
+      height: 2px;
+      background: var(--primary);
+      opacity: 0.2;
+      border-radius: 1px;
+    }
+    .cs-tl-event {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 44px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .cs-tl-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid white;
+      box-shadow: 0 0 0 2px var(--primary);
+      margin-bottom: 5px;
+      flex-shrink: 0;
+    }
+    .cs-tl-date-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .cs-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .cs-count-pill {
+      font-size: 12px;
+      font-weight: 900;
+      color: white;
+      background: var(--primary);
+      padding: 3px 10px;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+    .cs-next-box {
+      text-align: right;
+    }
+    .cs-next-lbl { font-size: 9px; color: var(--text-muted); font-weight: 600; }
+    .cs-next-val { font-size: 11px; font-weight: 800; color: var(--warn); }
+
+    /* ════════════════════════════════
+       INOCRAS CHART CARD
+    ════════════════════════════════ */
+    .ino-chart-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .ino-legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .ino-leg-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .ino-leg-line {
+      display: inline-block;
+      width: 16px; height: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .ino-leg-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .ino-leg-badge.nd { background: #DCFCE7; color: #059669; }
+    .ino-leg-badge.d  { background: #FEE2E2; color: #DC2626; }
+    .ino-chemo-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .ino-strip-lbl {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .ino-strip-scroll {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ino-strip-scroll::-webkit-scrollbar { display: none; }
+    .ino-chemo-chip {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 99px;
+      background: var(--primary-light);
+      color: var(--primary);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ════════════════════════════════
+       BLADDER MARKERS GRID
+    ════════════════════════════════ */
+    .markers-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .mini-marker-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 12px 12px 8px;
+      box-shadow: var(--shadow);
+    }
+    .mm-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+    .mm-title { font-size: 12px; font-weight: 800; }
+    .mm-sub   { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+    .mm-latest { text-align: right; }
+    .mm-val   { font-size: 17px; font-weight: 900; line-height: 1; }
+    .mm-unit  { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+    .mm-latest.ok   .mm-val { color: var(--accent); }
+    .mm-latest.warn .mm-val { color: var(--warn); }
+    .mm-latest.bad  .mm-val { color: var(--danger); }
+
+    /* ════════════════════════════════
+       DESKTOP BREAKPOINT (≥ 768px)
+    ════════════════════════════════ */
+    @media (min-width: 768px) {
+      .content-area {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .bottom-nav {
+        max-width: 600px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 20px 20px 0 0;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+      }
+      .top-header {
+        max-width: 600px;
+        margin: 0 auto;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+      }
+      .hero-card { padding: 26px 24px; }
+      .hero-left .big { font-size: 56px; }
+    }
+
+    @media (min-width: 1024px) {
+      body { background: #E2E8F0; }
+      .top-header { position: relative; border-radius: 0; }
+      .app-wrapper {
+        max-width: 420px;
+        margin: 24px auto;
+        border-radius: 40px;
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(0,0,0,.2);
+        background: var(--bg);
+        border: 8px solid #1E293B;
+        height: 812px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+      .content-area {
+        max-width: 100%;
+        flex: 1;
+        overflow-y: auto;
+      }
+      .bottom-nav {
+        position: absolute;
+        max-width: 100%;
+        transform: none;
+        left: 0; right: 0;
+        border-left: none; border-right: none;
+        border-radius: 0;
+      }
+      .top-header {
+        max-width: 100%;
+        border-left: none; border-right: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- TOP HEADER -->
+  <div class="top-header">
+    <div class="top-header-inner">
+      <div class="header-logo">
+        <svg viewBox="0 0 26 26" fill="none">
+          <rect width="26" height="26" rx="7" fill="#3B82F6"/>
+          <path d="M13 5v16M7 9.5l6-4 6 4M7 16.5l6 4 6-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        내 건강 기록
+      </div>
+      <div class="header-avatar">김</div>
+    </div>
+  </div>
+
+  <!-- SCROLL CONTENT -->
+  <div class="content-area">
+
+    <!-- ══════ HOME ══════ -->
+    <div id="tab-home" class="panel active">
+      <div class="page">
+        <div class="page-title">안녕하세요, 김○○님 👋</div>
+
+        <!-- Hero countdown -->
+        <div class="hero-card">
+          <div class="hero-left">
+            <h3>다음 항암까지</h3>
+            <div class="big">5</div>
+            <div class="unit">일 남았습니다</div>
+          </div>
+          <div class="hero-right">
+            <div class="chemo-name">GC 항암요법</div>
+            <div class="chemo-date">2026. 03. 31 (화)</div>
+            <div class="cycle-pill">5차 / 6차</div>
+          </div>
+        </div>
+
+        <!-- Summary chips -->
+        <div class="summary-scroll">
+          <div class="summary-chip">
+            <div class="chip-icon blue">💊</div>
+            <div>
+              <div class="chip-label">다음 항암</div>
+              <div class="chip-value" style="color:var(--primary)">D-5</div>
+              <div class="chip-sub">3월 31일 · 5차</div>
+            </div>
+          </div>
+          <div class="summary-chip">
+            <div class="chip-icon green">🏥</div>
+            <div>
+              <div class="chip-label">치료 진행</div>
+              <div class="chip-value" style="color:var(--accent)">4/6차</div>
+              <div class="chip-sub">GC 항암요법</div>
+            </div>
+          </div>
+          <div class="summary-chip">
+            <div class="chip-icon amber">📋</div>
+            <div>
+              <div class="chip-label">이번 달 일정</div>
+              <div class="chip-value" style="color:var(--warn)">3건</div>
+              <div class="chip-sub">항암·검진·외래</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upcoming events -->
+        <div class="section-header">
+          <h2>다가오는 일정</h2>
+          <span class="see-all" onclick="showTab('schedule')">전체보기 →</span>
+        </div>
+        <div class="event-list">
+          <div class="event-item today">
+            <div class="event-date-block today-color">
+              <div class="month">MAR</div>
+              <div class="day">26</div>
+            </div>
+            <div class="event-divider" style="background:var(--primary);opacity:.3"></div>
+            <div class="event-body">
+              <div class="event-title">외래 진료 (비뇨의학과)</div>
+              <div class="event-sub">10:30 · 서울대학교병원 6층</div>
+            </div>
+            <span class="event-badge badge-today">오늘</span>
+          </div>
+          <div class="event-item">
+            <div class="event-date-block">
+              <div class="month">MAR</div>
+              <div class="day">28</div>
+            </div>
+            <div class="event-divider"></div>
+            <div class="event-body">
+              <div class="event-title">혈액 검사</div>
+              <div class="event-sub">08:00 · 항암 전 CBC 확인</div>
+            </div>
+            <span class="event-badge badge-check">검진</span>
+          </div>
+          <div class="event-item">
+            <div class="event-date-block">
+              <div class="month">MAR</div>
+              <div class="day">31</div>
+            </div>
+            <div class="event-divider"></div>
+            <div class="event-body">
+              <div class="event-title">5차 항암 치료 (GC)</div>
+              <div class="event-sub">09:00 · 주사실 3번 · 약 4시간</div>
+            </div>
+            <span class="event-badge badge-chemo">항암</span>
+          </div>
+          <div class="event-item">
+            <div class="event-date-block">
+              <div class="month">APR</div>
+              <div class="day">14</div>
+            </div>
+            <div class="event-divider"></div>
+            <div class="event-body">
+              <div class="event-title">CT 촬영 (복부/골반)</div>
+              <div class="event-sub">14:00 · 영상의학과 · 조영제</div>
+            </div>
+            <span class="event-badge badge-consult">검진</span>
+          </div>
+        </div>
+
+        <!-- ── 항암 치료 현황 ── -->
+        <div class="section-header">
+          <h2>항암 치료 현황</h2>
+        </div>
+        <div class="chemo-status-card">
+          <!-- BCG -->
+          <div class="cs-row">
+            <div class="cs-info">
+              <div class="cs-name">BCG</div>
+              <div class="cs-sub">방광 내 주입</div>
+            </div>
+            <div class="cs-timeline-scroll">
+              <div class="cs-tl-inner">
+                <div class="cs-tl-line"></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">11/10</div></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">12/01</div></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">01/06</div></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">02/03</div></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">03/03</div></div>
+              </div>
+            </div>
+            <div class="cs-right">
+              <div class="cs-count-pill">5회</div>
+              <div class="cs-next-box">
+                <div class="cs-next-lbl">다음 일정</div>
+                <div class="cs-next-val">4/15 (수)</div>
+              </div>
+            </div>
+          </div>
+          <div class="cs-divider"></div>
+          <!-- 키트루다 -->
+          <div class="cs-row">
+            <div class="cs-info">
+              <div class="cs-name">키트루다</div>
+              <div class="cs-sub">면역항암제</div>
+            </div>
+            <div class="cs-timeline-scroll">
+              <div class="cs-tl-inner">
+                <div class="cs-tl-line"></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">02/03</div></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">02/17</div></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">03/03</div></div>
+                <div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">03/17</div></div>
+              </div>
+            </div>
+            <div class="cs-right">
+              <div class="cs-count-pill">4회</div>
+              <div class="cs-next-box">
+                <div class="cs-next-lbl">다음 일정</div>
+                <div class="cs-next-val">4/07 (화)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 이노크라스 결과 추이 ── -->
+        <div class="section-header">
+          <h2>이노크라스 결과 추이</h2>
+        </div>
+        <div class="ino-chart-card">
+          <div class="ino-legend">
+            <div class="ino-leg-item"><span class="ino-leg-line" style="background:#F97316"></span>소변 수치</div>
+            <div class="ino-leg-item"><span class="ino-leg-badge nd">ND</span>혈액 미검출</div>
+            <div class="ino-leg-item"><span class="ino-leg-badge d">D</span>혈액 검출</div>
+          </div>
+          <canvas id="inocrasChart" height="140"></canvas>
+        </div>
+
+        <!-- ── 주요 방광암 표지자 ── -->
+        <div class="section-header">
+          <h2>주요 방광암 표지자</h2>
+        </div>
+        <div class="markers-grid">
+          <div class="mini-marker-card">
+            <div class="mm-header">
+              <div><div class="mm-title">NMP22</div><div class="mm-sub">방광암 표지자</div></div>
+              <div class="mm-latest ok"><div class="mm-val">4.8</div><div class="mm-unit">U/mL · &lt;10</div></div>
+            </div>
+            <canvas id="mm1" height="52"></canvas>
+          </div>
+          <div class="mini-marker-card">
+            <div class="mm-header">
+              <div><div class="mm-title">RBC</div><div class="mm-sub">적혈구</div></div>
+              <div class="mm-latest warn"><div class="mm-val">3.7</div><div class="mm-unit">M/μL · 4.2↑</div></div>
+            </div>
+            <canvas id="mm2" height="52"></canvas>
+          </div>
+          <div class="mini-marker-card">
+            <div class="mm-header">
+              <div><div class="mm-title">WBC</div><div class="mm-sub">백혈구</div></div>
+              <div class="mm-latest warn"><div class="mm-val">3.2k</div><div class="mm-unit">/μL · 4k↑</div></div>
+            </div>
+            <canvas id="mm3" height="52"></canvas>
+          </div>
+          <div class="mini-marker-card">
+            <div class="mm-header">
+              <div><div class="mm-title">NLR</div><div class="mm-sub">호중구/림프구비</div></div>
+              <div class="mm-latest ok"><div class="mm-val">2.6</div><div class="mm-unit">비율 · &lt;3</div></div>
+            </div>
+            <canvas id="mm4" height="52"></canvas>
+          </div>
+          <div class="mini-marker-card">
+            <div class="mm-header">
+              <div><div class="mm-title">PSA</div><div class="mm-sub">전립선 특이항원</div></div>
+              <div class="mm-latest ok"><div class="mm-val">0.5</div><div class="mm-unit">ng/mL · &lt;4</div></div>
+            </div>
+            <canvas id="mm5" height="52"></canvas>
+          </div>
+          <div class="mini-marker-card">
+            <div class="mm-header">
+              <div><div class="mm-title">eGFR</div><div class="mm-sub">사구체여과율</div></div>
+              <div class="mm-latest warn"><div class="mm-val">60</div><div class="mm-unit">mL/min · 60↑</div></div>
+            </div>
+            <canvas id="mm6" height="52"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- OLD tl-card placeholder (hidden) -->
+    <div style="display:none"><div class="tl-card">
+          <div class="tl-legend">
+            <div class="tl-legend-item"><span class="tl-leg-dot" style="background:#3B82F6"></span>항암</div>
+            <div class="tl-legend-item"><span class="tl-leg-dot" style="background:#F97316"></span>이노크라스 채취</div>
+            <div class="tl-legend-item"><span class="tl-leg-dot" style="background:#10B981"></span>결과 수치</div>
+          </div>
+          <div class="tl-scroll">
+            <div class="tl-inner">
+              <div class="tl-axis-line"></div>
+              <div class="tl-arrow">→</div>
+
+              <!-- BCG 1차: 11/10 -->
+              <div class="tl-col">
+                <div class="tl-top">
+                  <div class="tl-event-label" style="color:#3B82F6">BCG 1차</div>
+                  <div class="tl-event-date">25/11/10</div>
+                  <div class="tl-connector"></div>
+                </div>
+                <div class="tl-dot bcg"></div>
+                <div class="tl-bot"></div>
+              </div>
+
+              <!-- BCG 2차 + 이노크라스 채취: 12/01 -->
+              <div class="tl-col">
+                <div class="tl-top">
+                  <div class="tl-event-label" style="color:#3B82F6">BCG 2차</div>
+                  <div class="tl-event-date">25/12/01</div>
+                  <div class="tl-connector"></div>
+                </div>
+                <div class="tl-dot bcg"></div>
+                <div class="tl-bot">
+                  <div class="tl-connector"></div>
+                  <div class="tl-event-label" style="color:#F97316">이노크라스<br>채취</div>
+                  <div class="tl-event-date">25/12/01</div>
+                </div>
+              </div>
+
+              <!-- 이노크라스 결과: 12/15 -->
+              <div class="tl-col">
+                <div class="tl-top"></div>
+                <div class="tl-dot" style="background:#10B981;box-shadow:0 0 0 2px #10B981"></div>
+                <div class="tl-bot">
+                  <div class="tl-connector"></div>
+                  <div class="tl-event-label" style="color:#10B981">이노크라스<br>결과</div>
+                  <div class="tl-val-row">
+                    <span class="tl-val-item" style="color:#F97316">소변 <b>(8.5)</b></span>
+                    <span class="tl-val-item" style="color:#8B5CF6">혈액 <b>(12.1)</b></span>
+                  </div>
+                  <div class="tl-event-date">25/12/15</div>
+                </div>
+              </div>
+
+              <!-- BCG 3차: 1/06 -->
+              <div class="tl-col">
+                <div class="tl-top">
+                  <div class="tl-event-label" style="color:#3B82F6">BCG 3차</div>
+                  <div class="tl-event-date">26/01/06</div>
+                  <div class="tl-connector"></div>
+                </div>
+                <div class="tl-dot bcg"></div>
+                <div class="tl-bot"></div>
+              </div>
+
+              <!-- 이노크라스 채취: 1/20 -->
+              <div class="tl-col">
+                <div class="tl-top"></div>
+                <div class="tl-dot inocras-collect"></div>
+                <div class="tl-bot">
+                  <div class="tl-connector"></div>
+                  <div class="tl-event-label" style="color:#F97316">이노크라스<br>채취</div>
+                  <div class="tl-event-date">26/01/20</div>
+                </div>
+              </div>
+
+              <!-- GC 1차 + 이노크라스 결과: 2/03 -->
+              <div class="tl-col" style="width:82px">
+                <div class="tl-top">
+                  <div class="tl-event-label" style="color:#3B82F6">GC 1차</div>
+                  <div class="tl-event-date">26/02/03</div>
+                  <div class="tl-connector"></div>
+                </div>
+                <div class="tl-dot bcg"></div>
+                <div class="tl-bot">
+                  <div class="tl-connector"></div>
+                  <div class="tl-event-label" style="color:#10B981">이노크라스<br>결과</div>
+                  <div class="tl-val-row">
+                    <span class="tl-val-item" style="color:#F97316">소변 <b>(6.8)</b></span>
+                    <span class="tl-val-item" style="color:#8B5CF6">혈액 <b>(9.5)</b></span>
+                  </div>
+                  <div class="tl-event-date">26/02/03</div>
+                </div>
+              </div>
+
+              <!-- GC 2차: 2/17 -->
+              <div class="tl-col">
+                <div class="tl-top">
+                  <div class="tl-event-label" style="color:#3B82F6">GC 2차</div>
+                  <div class="tl-event-date">26/02/17</div>
+                  <div class="tl-connector"></div>
+                </div>
+                <div class="tl-dot bcg"></div>
+                <div class="tl-bot"></div>
+              </div>
+
+              <!-- GC 3차: 3/03 -->
+              <div class="tl-col">
+                <div class="tl-top">
+                  <div class="tl-event-label" style="color:#3B82F6">GC 3차</div>
+                  <div class="tl-event-date">26/03/03</div>
+                  <div class="tl-connector"></div>
+                </div>
+                <div class="tl-dot bcg"></div>
+                <div class="tl-bot"></div>
+              </div>
+
+              <!-- GC 4차 + 이노크라스 채취: 3/17 -->
+              <div class="tl-col" style="width:82px">
+                <div class="tl-top">
+                  <div class="tl-event-label" style="color:#3B82F6">GC 4차</div>
+                  <div class="tl-event-date">26/03/17</div>
+                  <div class="tl-connector"></div>
+                </div>
+                <div class="tl-dot bcg"></div>
+                <div class="tl-bot">
+                  <div class="tl-connector"></div>
+                  <div class="tl-event-label" style="color:#F97316">이노크라스<br>채취</div>
+                  <div class="tl-event-date">26/03/17</div>
+                </div>
+              </div>
+
+              <!-- TODAY marker -->
+              <div class="tl-now-col">
+                <div class="tl-now-line"></div>
+                <div class="tl-now-badge">오늘</div>
+              </div>
+
+              <!-- GC 5차 upcoming: 3/31 -->
+              <div class="tl-col">
+                <div class="tl-top">
+                  <div class="tl-event-label" style="color:#94A3B8">GC 5차</div>
+                  <div class="tl-event-date" style="color:#CBD5E1">26/03/31</div>
+                  <div class="tl-connector"></div>
+                </div>
+                <div class="tl-dot" style="background:#CBD5E1;box-shadow:0 0 0 2px #CBD5E1"></div>
+                <div class="tl-bot"></div>
+              </div>
+
+              <div style="width:24px;flex-shrink:0;"></div>
+            </div>
+          </div>
+        </div>
+    </div></div><!-- /hidden old tl-card -->
+
+    <!-- ══════ CHARTS ══════ -->
+    <div id="tab-charts" class="panel">
+      <div class="page">
+        <div class="page-title">검진 수치</div>
+
+        <div class="filter-scroll">
+          <button class="filter-chip active">전체</button>
+          <button class="filter-chip">혈액 검사</button>
+          <button class="filter-chip">종양 표지자</button>
+          <button class="filter-chip">소변 검사</button>
+          <button class="filter-chip">신기능</button>
+        </div>
+
+        <!-- WBC -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">백혈구 (WBC)</div>
+              <div class="chart-sub">정상 4,000–10,000 /μL</div>
+            </div>
+            <div class="chart-latest">
+              <div class="val">3,200</div>
+              <div class="unit">/μL</div>
+              <div class="change down">▼ 감소</div>
+            </div>
+          </div>
+          <canvas id="wbcChart" height="110"></canvas>
+          <div class="range-bar">
+            <span>0</span>
+            <div class="range-track">
+              <div class="range-normal" style="left:30%;width:50%"></div>
+              <div class="range-pointer" style="left:22%"></div>
+            </div>
+            <span>15k</span>
+          </div>
+        </div>
+
+        <!-- Hb -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">헤모글로빈 (Hb)</div>
+              <div class="chart-sub">정상 12–16 g/dL</div>
+            </div>
+            <div class="chart-latest">
+              <div class="val">10.8</div>
+              <div class="unit">g/dL</div>
+              <div class="change up">▲ 주의</div>
+            </div>
+          </div>
+          <canvas id="hbChart" height="110"></canvas>
+          <div class="range-bar">
+            <span>6</span>
+            <div class="range-track">
+              <div class="range-normal" style="left:40%;width:40%"></div>
+              <div class="range-pointer" style="left:32%"></div>
+            </div>
+            <span>18</span>
+          </div>
+        </div>
+
+        <!-- Tumor markers -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">종양 표지자 추이</div>
+              <div class="chart-sub">CEA · CA19-9 · NMP22</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;font-size:10px;font-weight:600;align-items:flex-end;">
+              <span style="color:#3B82F6">● CEA</span>
+              <span style="color:#10B981">● CA19-9</span>
+              <span style="color:#F59E0B">● NMP22</span>
+            </div>
+          </div>
+          <canvas id="tumorChart" height="120"></canvas>
+        </div>
+
+        <!-- PLT -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">혈소판 (PLT)</div>
+              <div class="chart-sub">정상 150,000–450,000 /μL</div>
+            </div>
+            <div class="chart-latest">
+              <div class="val">142k</div>
+              <div class="unit">/μL</div>
+              <div class="change stable">→ 경계</div>
+            </div>
+          </div>
+          <canvas id="pltChart" height="110"></canvas>
+        </div>
+
+        <!-- Creatinine -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">크레아티닌 (Cr)</div>
+              <div class="chart-sub">정상 0.6–1.2 mg/dL</div>
+            </div>
+            <div class="chart-latest">
+              <div class="val">1.1</div>
+              <div class="unit">mg/dL</div>
+              <div class="change stable">→ 정상</div>
+            </div>
+          </div>
+          <canvas id="crChart" height="110"></canvas>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════ SCHEDULE ══════ -->
+    <div id="tab-schedule" class="panel">
+      <div class="page">
+        <div class="page-title">전체 일정</div>
+
+        <div class="filter-scroll">
+          <button class="filter-chip active">전체</button>
+          <button class="filter-chip">항암</button>
+          <button class="filter-chip">검진/채혈</button>
+          <button class="filter-chip">외래</button>
+        </div>
+
+        <div class="schedule-list">
+          <!-- 예정 -->
+          <div class="schedule-card">
+            <div class="sch-date">
+              <div class="mon">MAR</div>
+              <div class="d" style="color:var(--primary)">26</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">외래 진료 (비뇨의학과)</div>
+              <div class="sch-place">서울대병원 6층 · 10:30</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-consult">외래</span>
+              <span class="sch-status today-s">오늘</span>
+            </div>
+          </div>
+          <div class="schedule-card">
+            <div class="sch-date">
+              <div class="mon">MAR</div>
+              <div class="d">28</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">혈액 검사 (CBC, 화학)</div>
+              <div class="sch-place">검사실 1층 · 08:00</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-check">검진</span>
+              <span class="sch-status upcoming">예정</span>
+            </div>
+          </div>
+          <div class="schedule-card">
+            <div class="sch-date">
+              <div class="mon">MAR</div>
+              <div class="d">31</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">5차 GC 항암</div>
+              <div class="sch-place">주사실 3번 · 09:00 · 4시간</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-chemo">항암</span>
+              <span class="sch-status upcoming">예정</span>
+            </div>
+          </div>
+          <div class="schedule-card">
+            <div class="sch-date">
+              <div class="mon">APR</div>
+              <div class="d">14</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">CT 촬영 (복부/골반)</div>
+              <div class="sch-place">영상의학과 · 14:00</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-consult">검진</span>
+              <span class="sch-status upcoming">예정</span>
+            </div>
+          </div>
+          <div class="schedule-card">
+            <div class="sch-date">
+              <div class="mon">APR</div>
+              <div class="d">21</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">6차 GC 항암 (최종)</div>
+              <div class="sch-place">주사실 3번 · 09:00</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-chemo">항암</span>
+              <span class="sch-status upcoming">예정</span>
+            </div>
+          </div>
+          <!-- 완료 -->
+          <div class="schedule-card done">
+            <div class="sch-date">
+              <div class="mon">MAR</div>
+              <div class="d">17</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">4차 GC 항암</div>
+              <div class="sch-place">주사실 3번</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-chemo">항암</span>
+              <span class="sch-status done-s">완료</span>
+            </div>
+          </div>
+          <div class="schedule-card done">
+            <div class="sch-date">
+              <div class="mon">MAR</div>
+              <div class="d">3</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">3차 GC 항암</div>
+              <div class="sch-place">주사실 3번</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-chemo">항암</span>
+              <span class="sch-status done-s">완료</span>
+            </div>
+          </div>
+          <div class="schedule-card done">
+            <div class="sch-date">
+              <div class="mon">FEB</div>
+              <div class="d">17</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">2차 GC 항암</div>
+              <div class="sch-place">주사실 3번</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-chemo">항암</span>
+              <span class="sch-status done-s">완료</span>
+            </div>
+          </div>
+          <div class="schedule-card done">
+            <div class="sch-date">
+              <div class="mon">FEB</div>
+              <div class="d">3</div>
+            </div>
+            <div class="sch-divider"></div>
+            <div class="sch-body">
+              <div class="sch-title">1차 GC 항암</div>
+              <div class="sch-place">주사실 3번</div>
+            </div>
+            <div class="sch-right">
+              <span class="event-badge badge-chemo">항암</span>
+              <span class="sch-status done-s">완료</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ PROFILE ══════ -->
+    <div id="tab-profile" class="panel">
+      <div class="page">
+        <div class="page-title">내 정보</div>
+        <div class="profile-hero">
+          <div class="prof-avatar">김</div>
+          <div>
+            <div class="prof-name">김○○</div>
+            <div class="prof-sub">방광암 T2N0M0 · GC 항암요법 진행 중</div>
+          </div>
+        </div>
+        <div class="info-grid">
+          <div class="info-card"><div class="info-label">진단명</div><div class="info-value">방광암<br>(TCC)</div></div>
+          <div class="info-card"><div class="info-label">병기</div><div class="info-value">T2N0M0<br>(2기)</div></div>
+          <div class="info-card"><div class="info-label">수술일</div><div class="info-value">2025.10.15<br>근치적 방광절제</div></div>
+          <div class="info-card"><div class="info-label">치료</div><div class="info-value">GC 항암요법<br>6사이클</div></div>
+          <div class="info-card"><div class="info-label">담당 주치의</div><div class="info-value">비뇨의학과<br>○○○ 교수</div></div>
+          <div class="info-card"><div class="info-label">병원</div><div class="info-value">서울대학교<br>병원</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+
+  <!-- BOTTOM NAV BAR -->
+  <div class="bottom-nav">
+    <button class="bottom-nav-item active" id="nav-home" onclick="showTab('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/>
+        <path d="M9 21V12h6v9"/>
+      </svg>
+      홈
+    </button>
+    <button class="bottom-nav-item" id="nav-charts" onclick="showTab('charts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      검진 수치
+    </button>
+    <button class="bottom-nav-item" id="nav-schedule" onclick="showTab('schedule')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      일정
+    </button>
+    <button class="bottom-nav-item" id="nav-profile" onclick="showTab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      내 정보
+    </button>
+  </div>
+
+</div><!-- /app-wrapper -->
+
+<script>
+  function showTab(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.getElementById('nav-' + name).classList.add('active');
+    // scroll to top
+    document.querySelector('.content-area').scrollTop = 0;
+  }
+
+  const labels = ['10/15','11/1','11/15','12/1','12/15','1/1','1/15','2/3','2/17','3/3','3/17','3/26'];
+
+  const chartDefaults = {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94A3B8', maxTicksLimit: 6 } },
+      y: { grid: { color: '#F1F5F9' }, ticks: { font: { size: 9 }, color: '#94A3B8' } }
+    },
+    elements: { point: { radius: 3, hoverRadius: 5 } }
+  };
+
+  // ── 이노크라스 차트 (소변 연속 + 수치 라벨 + x축 항암 표시) ──
+  const inoLabels = ['12/01','12/15','01/06','01/20','02/03','02/17','03/03','03/17'];
+  const urineData = [8.5, 7.2, null, 6.8, 5.9, null, null, 4.1];
+  const bloodMap  = {1: false, 4: false, 7: false}; // false=ND, true=D
+  // 항암 idx → x축 표시 라벨
+  const chemoTick = {0:'BCG2차',2:'BCG3차',4:'GC1차',5:'GC2차',6:'GC3차',7:'GC4차'};
+
+  const inoPlugin = {
+    id: 'inoOverlay',
+    afterDraw(chart) {
+      const ctx = chart.ctx;
+      const xA = chart.scales.x, yA = chart.scales.y;
+      // 항암 수직 점선 (x축 라벨로도 표시되므로 얇게)
+      Object.keys(chemoTick).forEach(i => {
+        const x = xA.getPixelForValue(+i);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(59,130,246,.15)';
+        ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(x, yA.top); ctx.lineTo(x, yA.bottom); ctx.stroke();
+        ctx.restore();
+      });
+      // 혈액 ND/D 박스 (top padding 영역)
+      Object.entries(bloodMap).forEach(([i, det]) => {
+        const x = xA.getPixelForValue(+i), y = yA.top + 11;
+        const w = det ? 10 : 16, h = 13, r = 3;
+        ctx.save();
+        ctx.fillStyle = det ? '#FEE2E2' : '#DCFCE7';
+        ctx.beginPath();
+        ctx.moveTo(x-w/2+r,y-h/2); ctx.arcTo(x+w/2,y-h/2,x+w/2,y+h/2,r);
+        ctx.arcTo(x+w/2,y+h/2,x-w/2,y+h/2,r); ctx.arcTo(x-w/2,y+h/2,x-w/2,y-h/2,r);
+        ctx.arcTo(x-w/2,y-h/2,x+w/2,y-h/2,r); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = det ? '#DC2626' : '#059669';
+        ctx.font = 'bold 7px -apple-system,sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(det ? 'D' : 'ND', x, y);
+        ctx.restore();
+      });
+      // 각 데이터 포인트 위에 수치 라벨
+      urineData.forEach((val, idx) => {
+        if (val === null) return;
+        const x = xA.getPixelForValue(idx);
+        const y = yA.getPixelForValue(val);
+        ctx.save();
+        ctx.fillStyle = '#EA580C';
+        ctx.font = 'bold 9px -apple-system,sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(val, x, y - 5);
+        ctx.restore();
+      });
+    }
+  };
+
+  new Chart(document.getElementById('inocrasChart'), {
+    type: 'line',
+    plugins: [inoPlugin],
+    data: {
+      labels: inoLabels,
+      datasets: [{
+        label: '소변 수치',
+        data: urineData,
+        borderColor: '#F97316',
+        backgroundColor: 'rgba(249,115,22,.1)',
+        fill: true, tension: .4,
+        spanGaps: true,          // 연속 연결
+        pointRadius: urineData.map(v => v !== null ? 4 : 0),
+        pointBackgroundColor: '#F97316'
+      }]
+    },
+    options: {
+      responsive: true,
+      layout: { padding: { top: 26 } },
+      plugins: { legend: { display: false }, tooltip: { filter: i => i.raw !== null } },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: ctx => ({ size: 8, weight: chemoTick[ctx.index] ? '700' : '400' }),
+            color: ctx => chemoTick[ctx.index] ? '#3B82F6' : '#94A3B8',
+            callback(val, idx) {
+              return chemoTick[idx] ? [chemoTick[idx], inoLabels[idx]] : inoLabels[idx];
+            }
+          }
+        },
+        y: { min: 0, grid: { color: '#F1F5F9' }, ticks: { font: { size: 9 }, color: '#94A3B8' } }
+      }
+    }
+  });
+
+  // ── 방광암 표지자 미니 차트 6개 ──
+  const mmLabels = ['10/15','11/1','12/1','1/6','2/3','2/17','3/3','3/17'];
+  const mmBase = {
+    responsive: true, animation: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: { x: { display: false }, y: { display: false } },
+    elements: { point: { radius: 2 }, line: { borderWidth: 2 } }
+  };
+  [
+    { id:'mm1', d:[12,10,7.2,6.5,5.9,5.2,4.9,4.8], c:'#3B82F6', bg:'rgba(59,130,246,.08)', fill:true  },  // NMP22 낮을수록 좋음
+    { id:'mm2', d:[4.8,4.6,4.4,4.2,4.0,3.9,3.8,3.7], c:'#F97316', bg:'rgba(249,115,22,.08)', fill:true  },  // RBC 낮으면 경고
+    { id:'mm3', d:[7.2,6.8,6.5,4.8,3.9,5.1,4.2,3.2], c:'#8B5CF6', bg:'transparent', fill:false },  // WBC
+    { id:'mm4', d:[2.8,3.2,2.9,3.5,2.7,3.1,2.8,2.6], c:'#10B981', bg:'transparent', fill:false },  // NLR
+    { id:'mm5', d:[0.8,0.7,0.7,0.6,0.6,0.5,0.5,0.5], c:'#14B8A6', bg:'transparent', fill:false },  // PSA
+    { id:'mm6', d:[72,70,68,65,63,62,61,60],           c:'#F59E0B', bg:'rgba(245,158,11,.08)', fill:true  },  // eGFR 높을수록 좋음
+  ].forEach(({id, d, c, bg, fill}) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    new Chart(el, {
+      type: 'line',
+      data: { labels: mmLabels, datasets: [{ data: d, borderColor: c, backgroundColor: bg, fill, tension: .4, pointRadius: 2, borderWidth: 2 }] },
+      options: mmBase
+    });
+  });
+
+  new Chart(document.getElementById('wbcChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data:[7200,6800,6500,6100,5800,6200,5900,4800,3900,5100,4200,3200], borderColor:'#3B82F6', backgroundColor:'rgba(59,130,246,.08)', fill:true, tension:.4 }] },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min:0 } } }
+  });
+
+  new Chart(document.getElementById('hbChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data:[13.5,13.1,12.8,12.5,12.1,12.5,11.8,11.2,11.6,11.0,11.2,10.8], borderColor:'#EF4444', backgroundColor:'rgba(239,68,68,.08)', fill:true, tension:.4 }] },
+    options: chartDefaults
+  });
+
+  new Chart(document.getElementById('tumorChart'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label:'CEA',   data:[5.2,4.8,4.5,4.1,3.8,3.5,3.2,2.9,2.7,2.5,2.3,2.1], borderColor:'#3B82F6', tension:.4, fill:false },
+      { label:'CA19-9',data:[38,35,32,29,27,25,23,21,20,18,17,16], borderColor:'#10B981', tension:.4, fill:false },
+      { label:'NMP22', data:[12,10,9,8.5,7.8,7.2,6.8,6.2,5.9,5.5,5.2,4.9], borderColor:'#F59E0B', tension:.4, fill:false }
+    ]},
+    options: chartDefaults
+  });
+
+  new Chart(document.getElementById('pltChart'), {
+    type: 'bar',
+    data: { labels: labels.slice(-8), datasets: [{ data:[220,198,165,180,155,168,148,142], backgroundColor:labels.slice(-8).map((_,i)=>i<6?'rgba(59,130,246,.45)':'rgba(245,158,11,.7)'), borderRadius:5 }] },
+    options: chartDefaults
+  });
+
+  new Chart(document.getElementById('crChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data:[0.9,0.95,1.0,1.05,1.02,0.98,1.05,1.08,1.05,1.1,1.08,1.1], borderColor:'#10B981', backgroundColor:'rgba(16,185,129,.08)', fill:true, tension:.4 }] },
+    options: chartDefaults
+  });
+
+  // Service Worker 등록
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

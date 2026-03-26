@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>아이콘 생성기</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 40px; background: #f1f5f9; }
+    h2 { margin-bottom: 24px; }
+    .btn { display: inline-block; margin: 8px; padding: 10px 20px; background: #3B82F6; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+    canvas { display: block; margin: 12px 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+    .note { font-size: 13px; color: #64748B; margin-top: 24px; line-height: 1.7; background: white; padding: 16px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+<h2>내 건강 기록 — 앱 아이콘 생성기</h2>
+<p>아래 버튼을 눌러 아이콘을 다운로드하고 <code>icons/</code> 폴더에 저장하세요.</p>
+
+<canvas id="c512" width="512" height="512"></canvas>
+<button class="btn" onclick="download('c512','icon-512.png')">icon-512.png 다운로드</button>
+
+<canvas id="c192" width="192" height="192"></canvas>
+<button class="btn" onclick="download('c192','icon-192.png')">icon-192.png 다운로드</button>
+
+<div class="note">
+  <strong>저장 위치:</strong><br>
+  두 파일 모두 <code>health-app/icons/</code> 폴더 안에 저장해주세요.<br><br>
+  <strong>iOS 홈 화면 추가 방법:</strong><br>
+  Safari → 공유 버튼 → 홈 화면에 추가<br><br>
+  <strong>Android 홈 화면 추가 방법:</strong><br>
+  Chrome → 메뉴(⋮) → 홈 화면에 추가 (또는 앱 설치)
+</div>
+
+<script>
+function drawIcon(canvas) {
+  const s = canvas.width;
+  const ctx = canvas.getContext('2d');
+  const r = s * 0.22; // corner radius
+
+  // 배경 (둥근 사각형)
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(s - r, 0);
+  ctx.quadraticCurveTo(s, 0, s, r);
+  ctx.lineTo(s, s - r);
+  ctx.quadraticCurveTo(s, s, s - r, s);
+  ctx.lineTo(r, s);
+  ctx.quadraticCurveTo(0, s, 0, s - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, 0, s, s);
+  grad.addColorStop(0, '#1E40AF');
+  grad.addColorStop(1, '#3B82F6');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // 심박 라인 (EKG)
+  const lw = s * 0.06;
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = lw;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  const m = s * 0.5;
+  const pts = [
+    [s*0.10, m],
+    [s*0.28, m],
+    [s*0.36, m * 0.45],
+    [s*0.44, m * 1.55],
+    [s*0.52, m * 0.65],
+    [s*0.58, m],
+    [s*0.90, m],
+  ];
+
+  ctx.beginPath();
+  ctx.moveTo(...pts[0]);
+  pts.slice(1).forEach(p => ctx.lineTo(...p));
+  ctx.stroke();
+
+  // 작은 하트 도트
+  const hx = s * 0.74, hy = s * 0.30, hs = s * 0.09;
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath();
+  ctx.arc(hx - hs*0.35, hy, hs*0.4, Math.PI, 0);
+  ctx.arc(hx + hs*0.35, hy, hs*0.4, Math.PI, 0);
+  ctx.lineTo(hx, hy + hs*0.9);
+  ctx.closePath();
+  ctx.fill();
+}
+
+const c512 = document.getElementById('c512');
+const c192 = document.getElementById('c192');
+drawIcon(c512);
+drawIcon(c192);
+
+function download(id, filename) {
+  const a = document.createElement('a');
+  a.href = document.getElementById(id).toDataURL('image/png');
+  a.download = filename;
+  a.click();
+}
+</script>
+</body>
+</html>

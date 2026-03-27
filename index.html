@@ -1667,17 +1667,23 @@
 </div><!-- /app-wrapper -->
 
 <script>
+  // ═══════════════════════════════════════════════════════════
+  // CONFIG — Apps Script 배포 후 URL을 여기에 붙여넣으세요
+  // ═══════════════════════════════════════════════════════════
+  const SHEETS_URL = ''; // ← 여기에 붙여넣기
+
+  // ─── NAV ───
   function showTab(name) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
     document.getElementById('nav-' + name).classList.add('active');
-    // scroll to top
     document.querySelector('.content-area').scrollTop = 0;
   }
 
-  const labels = ['10/15','11/1','11/15','12/1','12/15','1/1','1/15','2/3','2/17','3/3','3/17','3/26'];
-
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════
   const chartDefaults = {
     responsive: true,
     plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
@@ -1688,156 +1694,436 @@
     elements: { point: { radius: 3, hoverRadius: 5 } }
   };
 
-  // ── 이노크라스 차트 (소변 연속 + 수치 라벨 + x축 항암 표시) ──
-  const inoLabels = ['12/01','12/15','01/06','01/20','02/03','02/17','03/03','03/17'];
-  const urineData = [8.5, 7.2, null, 6.8, 5.9, null, null, 4.1];
-  const bloodMap  = {1: false, 4: false, 7: false}; // false=ND, true=D
-  // 항암 idx → x축 표시 라벨
-  const chemoTick = {0:'BCG2차',2:'BCG3차',4:'GC1차',5:'GC2차',6:'GC3차',7:'GC4차'};
+  function parseDate(s) {
+    if (!s) return null;
+    if (s instanceof Date) return s;
+    return new Date(String(s).replace(/-/g, '/'));
+  }
+  function fmtMD(s) {
+    const d = parseDate(s); if (!d) return '';
+    return `${d.getMonth()+1}/${d.getDate()}`;
+  }
+  function daysUntil(s) {
+    const d = parseDate(s); if (!d) return null;
+    const t = new Date(); t.setHours(0,0,0,0);
+    return Math.round((d - t) / 86400000);
+  }
+  function fmtKorDate(s) {
+    const d = parseDate(s); if (!d) return '';
+    const days = ['일','월','화','수','목','금','토'];
+    return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getDate()).padStart(2,'0')} (${days[d.getDay()]})`;
+  }
+  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const BADGE_CLASS = { 항암:'badge-chemo', 검진:'badge-check', 외래:'badge-consult', 이노크라스:'badge-check', 기타:'badge-consult' };
+  const PALETTE = ['#3B82F6','#10B981','#F97316','#8B5CF6','#EF4444','#F59E0B','#14B8A6','#EC4899'];
 
-  const inoPlugin = {
-    id: 'inoOverlay',
-    afterDraw(chart) {
-      const ctx = chart.ctx;
-      const xA = chart.scales.x, yA = chart.scales.y;
-      // 항암 수직 점선 (x축 라벨로도 표시되므로 얇게)
-      Object.keys(chemoTick).forEach(i => {
-        const x = xA.getPixelForValue(+i);
-        ctx.save();
-        ctx.strokeStyle = 'rgba(59,130,246,.15)';
-        ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
-        ctx.beginPath(); ctx.moveTo(x, yA.top); ctx.lineTo(x, yA.bottom); ctx.stroke();
-        ctx.restore();
-      });
-      // 혈액 ND/D 박스 (top padding 영역)
-      Object.entries(bloodMap).forEach(([i, det]) => {
-        const x = xA.getPixelForValue(+i), y = yA.top + 11;
-        const w = det ? 10 : 16, h = 13, r = 3;
-        ctx.save();
-        ctx.fillStyle = det ? '#FEE2E2' : '#DCFCE7';
-        ctx.beginPath();
-        ctx.moveTo(x-w/2+r,y-h/2); ctx.arcTo(x+w/2,y-h/2,x+w/2,y+h/2,r);
-        ctx.arcTo(x+w/2,y+h/2,x-w/2,y+h/2,r); ctx.arcTo(x-w/2,y+h/2,x-w/2,y-h/2,r);
-        ctx.arcTo(x-w/2,y-h/2,x+w/2,y-h/2,r); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = det ? '#DC2626' : '#059669';
-        ctx.font = 'bold 7px -apple-system,sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(det ? 'D' : 'ND', x, y);
-        ctx.restore();
-      });
-      // 각 데이터 포인트 위에 수치 라벨
-      urineData.forEach((val, idx) => {
-        if (val === null) return;
-        const x = xA.getPixelForValue(idx);
-        const y = yA.getPixelForValue(val);
-        ctx.save();
-        ctx.fillStyle = '#EA580C';
-        ctx.font = 'bold 9px -apple-system,sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        ctx.fillText(val, x, y - 5);
-        ctx.restore();
+  // ═══════════════════════════════════════════════════════════
+  // STATIC FALLBACK DATA (Sheets 연결 전 또는 오프라인 시 표시)
+  // ═══════════════════════════════════════════════════════════
+  const inoLabels = ['12/01','12/15','01/20','02/03','03/17'];
+  const urineData = [8.5, 7.2, 6.8, 5.9, 4.1];
+  const bloodMap  = {1: false, 3: false, 4: false}; // false=ND, true=D
+  const chemoTick = {3:'GC1차',4:'GC4차'};
+
+  // ═══════════════════════════════════════════════════════════
+  // CHART INSTANCES (destroy & recreate 지원)
+  // ═══════════════════════════════════════════════════════════
+  let _inoChart = null;
+  const _mmCharts = {}, _labCharts = {};
+
+  // ─── 이노크라스 플러그인 빌더 ───
+  function buildInoPlugin(uData, bMap, cTick) {
+    return {
+      id: 'inoOverlay',
+      afterDraw(chart) {
+        const ctx = chart.ctx, xA = chart.scales.x, yA = chart.scales.y;
+        Object.keys(cTick).forEach(i => {
+          const x = xA.getPixelForValue(+i);
+          ctx.save(); ctx.strokeStyle='rgba(59,130,246,.15)'; ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
+          ctx.beginPath(); ctx.moveTo(x,yA.top); ctx.lineTo(x,yA.bottom); ctx.stroke(); ctx.restore();
+        });
+        Object.entries(bMap).forEach(([i,det]) => {
+          const x = xA.getPixelForValue(+i), y = yA.top+11, w=det?10:16, h=13, r=3;
+          ctx.save(); ctx.fillStyle=det?'#FEE2E2':'#DCFCE7';
+          ctx.beginPath();
+          ctx.moveTo(x-w/2+r,y-h/2); ctx.arcTo(x+w/2,y-h/2,x+w/2,y+h/2,r);
+          ctx.arcTo(x+w/2,y+h/2,x-w/2,y+h/2,r); ctx.arcTo(x-w/2,y+h/2,x-w/2,y-h/2,r);
+          ctx.arcTo(x-w/2,y-h/2,x+w/2,y-h/2,r); ctx.closePath(); ctx.fill();
+          ctx.fillStyle=det?'#DC2626':'#059669'; ctx.font='bold 7px -apple-system,sans-serif';
+          ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(det?'D':'ND',x,y); ctx.restore();
+        });
+        uData.forEach((val,idx) => {
+          if (val===null) return;
+          const x=xA.getPixelForValue(idx), y=yA.getPixelForValue(val);
+          ctx.save(); ctx.fillStyle='#EA580C'; ctx.font='bold 9px -apple-system,sans-serif';
+          ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(val,x,y-5); ctx.restore();
+        });
+      }
+    };
+  }
+
+  // ─── 이노크라스 차트 렌더 ───
+  function renderInocrasChart(labels, uData, bMap, cTick) {
+    const el = document.getElementById('inocrasChart');
+    if (!el) return;
+    if (_inoChart) { _inoChart.destroy(); _inoChart = null; }
+    _inoChart = new Chart(el, {
+      type:'line', plugins:[buildInoPlugin(uData,bMap,cTick)],
+      data:{ labels, datasets:[{ label:'소변 수치', data:uData,
+        borderColor:'#F97316', backgroundColor:'rgba(249,115,22,.1)',
+        fill:true, tension:.4, spanGaps:true,
+        pointRadius:uData.map(v=>v!==null?4:0), pointBackgroundColor:'#F97316' }] },
+      options:{ responsive:true, layout:{padding:{top:26}},
+        plugins:{legend:{display:false},tooltip:{filter:i=>i.raw!==null}},
+        scales:{
+          x:{ grid:{display:false}, ticks:{
+            font: ctx=>({size:8,weight:cTick[ctx.index]?'700':'400'}),
+            color: ctx=>cTick[ctx.index]?'#3B82F6':'#94A3B8',
+            callback(val,idx){ return cTick[idx]?[cTick[idx],labels[idx]]:labels[idx]; }
+          }},
+          y:{min:0,grid:{color:'#F1F5F9'},ticks:{font:{size:9},color:'#94A3B8'}}
+        }
+      }
+    });
+  }
+
+  // ─── 미니 마커 차트 ───
+  function renderMiniChart(id, d, c, bg, fill) {
+    const el = document.getElementById(id); if (!el) return;
+    if (_mmCharts[id]) { _mmCharts[id].destroy(); delete _mmCharts[id]; }
+    _mmCharts[id] = new Chart(el, {
+      type:'line',
+      data:{ labels:d.map((_,i)=>i), datasets:[{ data:d, borderColor:c, backgroundColor:bg, fill, tension:.4, pointRadius:2, borderWidth:2 }] },
+      options:{ responsive:true, animation:false,
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        scales:{x:{display:false},y:{display:false}},
+        elements:{point:{radius:2},line:{borderWidth:2}} }
+    });
+  }
+
+  // ─── 검진수치 탭 차트 ───
+  function renderLabChart(id, labels, data, color, bg, type, opts) {
+    const el = document.getElementById(id); if (!el) return;
+    if (_labCharts[id]) { _labCharts[id].destroy(); }
+    _labCharts[id] = new Chart(el, {
+      type: type||'line',
+      data:{ labels, datasets:[{ data, borderColor:color, backgroundColor:bg, fill:!!bg, tension:.4 }] },
+      options:{ ...chartDefaults, ...opts }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATIC INIT (즉시 표시)
+  // ═══════════════════════════════════════════════════════════
+  function initStaticCharts() {
+    renderInocrasChart(inoLabels, urineData, bloodMap, chemoTick);
+
+    // 미니 마커 6개
+    const mmDefs = [
+      {id:'mm1',d:[12,10,7.2,6.5,5.9,5.2,4.9,4.8],c:'#3B82F6',bg:'rgba(59,130,246,.08)',fill:true},
+      {id:'mm2',d:[4.8,4.6,4.4,4.2,4.0,3.9,3.8,3.7],c:'#F97316',bg:'rgba(249,115,22,.08)',fill:true},
+      {id:'mm3',d:[7200,6800,6500,4800,3900,5100,4200,3200],c:'#8B5CF6',bg:'transparent',fill:false},
+      {id:'mm4',d:[2.8,3.2,2.9,3.5,2.7,3.1,2.8,2.6],c:'#10B981',bg:'transparent',fill:false},
+      {id:'mm5',d:[0.8,0.7,0.7,0.6,0.6,0.5,0.5,0.5],c:'#14B8A6',bg:'transparent',fill:false},
+      {id:'mm6',d:[72,70,68,65,63,62,61,60],c:'#F59E0B',bg:'rgba(245,158,11,.08)',fill:true},
+    ];
+    mmDefs.forEach(({id,d,c,bg,fill})=>renderMiniChart(id,d,c,bg,fill));
+
+    // 검진수치 탭 정적 차트
+    const L12 = ['10/15','11/1','11/15','12/1','12/15','1/1','1/15','2/3','2/17','3/3','3/17','3/26'];
+    renderLabChart('wbcChart',L12,[7200,6800,6500,6100,5800,6200,5900,4800,3900,5100,4200,3200],'#3B82F6','rgba(59,130,246,.08)','line',{scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y,min:0}}});
+    renderLabChart('hbChart', L12,[13.5,13.1,12.8,12.5,12.1,12.5,11.8,11.2,11.6,11.0,11.2,10.8],'#EF4444','rgba(239,68,68,.08)');
+    renderLabChart('crChart', L12,[0.9,0.95,1.0,1.05,1.02,0.98,1.05,1.08,1.05,1.1,1.08,1.1],'#10B981','rgba(16,185,129,.08)');
+
+    const tEl = document.getElementById('tumorChart');
+    if (tEl) {
+      if (_labCharts.tumorChart) _labCharts.tumorChart.destroy();
+      _labCharts.tumorChart = new Chart(tEl, {
+        type:'line', data:{labels:L12, datasets:[
+          {label:'CEA',   data:[5.2,4.8,4.5,4.1,3.8,3.5,3.2,2.9,2.7,2.5,2.3,2.1],borderColor:'#3B82F6',tension:.4,fill:false},
+          {label:'CA19-9',data:[38,35,32,29,27,25,23,21,20,18,17,16],              borderColor:'#10B981',tension:.4,fill:false},
+          {label:'NMP22', data:[12,10,9,8.5,7.8,7.2,6.8,6.2,5.9,5.5,5.2,4.9],    borderColor:'#F59E0B',tension:.4,fill:false}
+        ]}, options:chartDefaults
       });
     }
-  };
+    const pEl = document.getElementById('pltChart');
+    if (pEl) {
+      if (_labCharts.pltChart) _labCharts.pltChart.destroy();
+      const L8 = L12.slice(-8);
+      _labCharts.pltChart = new Chart(pEl, {
+        type:'bar', data:{labels:L8, datasets:[{data:[220,198,165,180,155,168,148,142],backgroundColor:L8.map((_,i)=>i<6?'rgba(59,130,246,.45)':'rgba(245,158,11,.7)'),borderRadius:5}]},
+        options:chartDefaults
+      });
+    }
+  }
 
-  new Chart(document.getElementById('inocrasChart'), {
-    type: 'line',
-    plugins: [inoPlugin],
-    data: {
-      labels: inoLabels,
-      datasets: [{
-        label: '소변 수치',
-        data: urineData,
-        borderColor: '#F97316',
-        backgroundColor: 'rgba(249,115,22,.1)',
-        fill: true, tension: .4,
-        spanGaps: true,          // 연속 연결
-        pointRadius: urineData.map(v => v !== null ? 4 : 0),
-        pointBackgroundColor: '#F97316'
-      }]
-    },
-    options: {
-      responsive: true,
-      layout: { padding: { top: 26 } },
-      plugins: { legend: { display: false }, tooltip: { filter: i => i.raw !== null } },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            font: ctx => ({ size: 8, weight: chemoTick[ctx.index] ? '700' : '400' }),
-            color: ctx => chemoTick[ctx.index] ? '#3B82F6' : '#94A3B8',
-            callback(val, idx) {
-              return chemoTick[idx] ? [chemoTick[idx], inoLabels[idx]] : inoLabels[idx];
-            }
-          }
-        },
-        y: { min: 0, grid: { color: '#F1F5F9' }, ticks: { font: { size: 9 }, color: '#94A3B8' } }
+  // ═══════════════════════════════════════════════════════════
+  // GOOGLE SHEETS → DOM 업데이트 함수들
+  // ═══════════════════════════════════════════════════════════
+
+  // 시트1(schedule): date/drug/type/title/place/time/status
+  function applySchedule(schedule) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const sorted = schedule
+      .map(e=>({...e,_d:parseDate(e.date)}))
+      .filter(e=>e._d)
+      .sort((a,b)=>a._d-b._d);
+
+    // ── 히어로 카드 (다음 항암) ──
+    const nextChemo = sorted.find(e=>e.type==='항암' && e._d>=today);
+    if (nextChemo) {
+      const days = daysUntil(nextChemo.date);
+      const hl = document.querySelector('.hero-left');
+      if (hl) {
+        hl.querySelector('.big').textContent = days;
+        hl.querySelector('.unit').textContent = days===0?'오늘입니다!':'일 남았습니다';
+      }
+      const hr = document.querySelector('.hero-right');
+      if (hr) {
+        hr.querySelector('.chemo-name').textContent = nextChemo.drug || nextChemo.title;
+        hr.querySelector('.chemo-date').textContent = fmtKorDate(nextChemo.date);
+        const chemoAll = sorted.filter(e=>e.type==='항암');
+        const pastCnt  = chemoAll.filter(e=>e._d<today).length;
+        hr.querySelector('.cycle-pill').textContent = `${pastCnt+1}차`;
       }
     }
-  });
 
-  // ── 방광암 표지자 미니 차트 6개 ──
-  const mmLabels = ['10/15','11/1','12/1','1/6','2/3','2/17','3/3','3/17'];
-  const mmBase = {
-    responsive: true, animation: false,
-    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-    scales: { x: { display: false }, y: { display: false } },
-    elements: { point: { radius: 2 }, line: { borderWidth: 2 } }
-  };
-  [
-    { id:'mm1', d:[12,10,7.2,6.5,5.9,5.2,4.9,4.8], c:'#3B82F6', bg:'rgba(59,130,246,.08)', fill:true  },  // NMP22 낮을수록 좋음
-    { id:'mm2', d:[4.8,4.6,4.4,4.2,4.0,3.9,3.8,3.7], c:'#F97316', bg:'rgba(249,115,22,.08)', fill:true  },  // RBC 낮으면 경고
-    { id:'mm3', d:[7.2,6.8,6.5,4.8,3.9,5.1,4.2,3.2], c:'#8B5CF6', bg:'transparent', fill:false },  // WBC
-    { id:'mm4', d:[2.8,3.2,2.9,3.5,2.7,3.1,2.8,2.6], c:'#10B981', bg:'transparent', fill:false },  // NLR
-    { id:'mm5', d:[0.8,0.7,0.7,0.6,0.6,0.5,0.5,0.5], c:'#14B8A6', bg:'transparent', fill:false },  // PSA
-    { id:'mm6', d:[72,70,68,65,63,62,61,60],           c:'#F59E0B', bg:'rgba(245,158,11,.08)', fill:true  },  // eGFR 높을수록 좋음
-  ].forEach(({id, d, c, bg, fill}) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    new Chart(el, {
-      type: 'line',
-      data: { labels: mmLabels, datasets: [{ data: d, borderColor: c, backgroundColor: bg, fill, tension: .4, pointRadius: 2, borderWidth: 2 }] },
-      options: mmBase
+    // ── 다가오는 일정 (홈탭) ──
+    const upcoming = sorted.filter(e=>e._d>=today).slice(0,5);
+    const eList = document.querySelector('#tab-home .event-list');
+    if (eList && upcoming.length) {
+      eList.innerHTML = upcoming.map(e=>{
+        const isToday = daysUntil(e.date)===0;
+        const sub=[e.time,e.place,e.drug].filter(Boolean).join(' · ');
+        return `<div class="event-item${isToday?' today':''}">
+          <div class="event-date-block${isToday?' today-color':''}">
+            <div class="month">${MONTHS[e._d.getMonth()]}</div>
+            <div class="day">${e._d.getDate()}</div>
+          </div>
+          <div class="event-divider"${isToday?' style="background:var(--primary);opacity:.3"':''}></div>
+          <div class="event-body">
+            <div class="event-title">${e.title}</div>
+            <div class="event-sub">${sub}</div>
+          </div>
+          ${isToday
+            ?'<span class="event-badge badge-today">오늘</span>'
+            :`<span class="event-badge ${BADGE_CLASS[e.type]||'badge-consult'}">${e.type}</span>`}
+        </div>`;
+      }).join('');
+    }
+
+    // ── 항암 치료 현황 ──
+    const chemoEvts = sorted.filter(e=>e.type==='항암');
+    const groups={};
+    chemoEvts.forEach(e=>{
+      const name=e.drug||e.title;
+      if(!groups[name]) groups[name]={past:[],next:null};
+      if(e._d<today) groups[name].past.push(e);
+      else if(!groups[name].next) groups[name].next=e;
     });
-  });
+    const csCard = document.querySelector('.chemo-status-card');
+    if (csCard) {
+      const entries=Object.entries(groups);
+      csCard.innerHTML=entries.map(([name,g],idx)=>`
+        <div class="cs-row">
+          <div class="cs-info"><div class="cs-name">${name}</div><div class="cs-sub">항암치료</div></div>
+          <div class="cs-timeline-scroll"><div class="cs-tl-inner">
+            <div class="cs-tl-line"></div>
+            ${g.past.map(e=>`<div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">${fmtMD(e.date)}</div></div>`).join('')}
+          </div></div>
+          <div class="cs-right">
+            <div class="cs-count-pill">${g.past.length}회</div>
+            ${g.next?`<div class="cs-next-box"><div class="cs-next-lbl">다음 일정</div><div class="cs-next-val">${fmtMD(g.next.date)} (${['일','월','화','수','목','금','토'][g.next._d.getDay()]})</div></div>`:''}
+          </div>
+        </div>${idx<entries.length-1?'<div class="cs-divider"></div>':''}
+      `).join('');
+    }
 
-  new Chart(document.getElementById('wbcChart'), {
-    type: 'line',
-    data: { labels, datasets: [{ data:[7200,6800,6500,6100,5800,6200,5900,4800,3900,5100,4200,3200], borderColor:'#3B82F6', backgroundColor:'rgba(59,130,246,.08)', fill:true, tension:.4 }] },
-    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min:0 } } }
-  });
+    // ── 일정 탭 전체 ──
+    const sList = document.querySelector('#tab-schedule .schedule-list');
+    if (sList) {
+      sList.innerHTML = sorted.map(e=>{
+        const isToday=daysUntil(e.date)===0, isPast=e._d<today;
+        const sub=[e.place,e.time].filter(Boolean).join(' · ');
+        return `<div class="schedule-card">
+          <div class="sch-date">
+            <div class="mon">${MONTHS[e._d.getMonth()]}</div>
+            <div class="d"${isToday?' style="color:var(--primary)"':''}>${e._d.getDate()}</div>
+          </div>
+          <div class="sch-divider"></div>
+          <div class="sch-body">
+            <div class="sch-title">${e.title}</div>
+            <div class="sch-place">${sub}</div>
+          </div>
+          <div class="sch-right">
+            <span class="event-badge ${BADGE_CLASS[e.type]||'badge-consult'}">${e.type}</span>
+            <span class="sch-status ${isToday?'today-s':isPast?'done-s':'upcoming'}">${isToday?'오늘':isPast?'완료':'예정'}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
 
-  new Chart(document.getElementById('hbChart'), {
-    type: 'line',
-    data: { labels, datasets: [{ data:[13.5,13.1,12.8,12.5,12.1,12.5,11.8,11.2,11.6,11.0,11.2,10.8], borderColor:'#EF4444', backgroundColor:'rgba(239,68,68,.08)', fill:true, tension:.4 }] },
-    options: chartDefaults
-  });
+  // 시트2(labs) + 시트3(labDefs): key/value 기반
+  function applyLabs(labs, labDefs) {
+    const defMap={};
+    labDefs.forEach(d=>{defMap[d.key]=d;});
 
-  new Chart(document.getElementById('tumorChart'), {
-    type: 'line',
-    data: { labels, datasets: [
-      { label:'CEA',   data:[5.2,4.8,4.5,4.1,3.8,3.5,3.2,2.9,2.7,2.5,2.3,2.1], borderColor:'#3B82F6', tension:.4, fill:false },
-      { label:'CA19-9',data:[38,35,32,29,27,25,23,21,20,18,17,16], borderColor:'#10B981', tension:.4, fill:false },
-      { label:'NMP22', data:[12,10,9,8.5,7.8,7.2,6.8,6.2,5.9,5.5,5.2,4.9], borderColor:'#F59E0B', tension:.4, fill:false }
-    ]},
-    options: chartDefaults
-  });
+    // ── 이노크라스 차트 ──
+    const inoRows = labs
+      .filter(r=>String(r.key).startsWith('Inocras_'))
+      .map(r=>({...r,_d:parseDate(r.date)}))
+      .sort((a,b)=>a._d-b._d);
 
-  new Chart(document.getElementById('pltChart'), {
-    type: 'bar',
-    data: { labels: labels.slice(-8), datasets: [{ data:[220,198,165,180,155,168,148,142], backgroundColor:labels.slice(-8).map((_,i)=>i<6?'rgba(59,130,246,.45)':'rgba(245,158,11,.7)'), borderRadius:5 }] },
-    options: chartDefaults
-  });
+    if (inoRows.length) {
+      const allDates=[...new Set(inoRows.map(r=>r.date))].sort();
+      const labels=allDates.map(fmtMD);
+      const uMap={}, bMap={};
+      inoRows.forEach(r=>{
+        const idx=allDates.indexOf(r.date);
+        if(r.key==='Inocras_소변') uMap[idx]=parseFloat(r.value)||null;
+        if(r.key==='Inocras_혈액') bMap[idx]=(+r.value===1); // 0=ND,1=D
+      });
+      const uData=allDates.map((_,i)=>uMap[i]!==undefined?uMap[i]:null);
+      renderInocrasChart(labels,uData,bMap,{});
+    }
 
-  new Chart(document.getElementById('crChart'), {
-    type: 'line',
-    data: { labels, datasets: [{ data:[0.9,0.95,1.0,1.05,1.02,0.98,1.05,1.08,1.05,1.1,1.08,1.1], borderColor:'#10B981', backgroundColor:'rgba(16,185,129,.08)', fill:true, tension:.4 }] },
-    options: chartDefaults
-  });
+    // ── 미니 마커 카드 ──
+    const mmKeys=['NMP22','RBC','WBC','NLR','PSA','eGFR'];
+    const mmIds =['mm1','mm2','mm3','mm4','mm5','mm6'];
+    mmKeys.forEach((key,i)=>{
+      const def=defMap[key]; if(!def) return;
+      const rows=labs.filter(r=>r.key===key)
+        .map(r=>({_d:parseDate(r.date),val:parseFloat(r.value)}))
+        .sort((a,b)=>a._d-b._d).slice(-8);
+      if(!rows.length) return;
+      const d=rows.map(r=>r.val), latest=d[d.length-1];
+      const mn=parseFloat(def.normal_min), mx=parseFloat(def.normal_max);
+      const hib=String(def.higher_is_better).toUpperCase()==='TRUE';
+      let status='ok';
+      if(!isNaN(mn)&&!isNaN(mx)) status=(latest<mn||latest>mx)?'warn':'ok';
+      else if(!isNaN(mn)) status=(!hib&&latest<mn||hib&&latest<mn)?'warn':'ok';
+      else if(!isNaN(mx)) status=(latest>mx)?'warn':'ok';
+      const c=PALETTE[i%PALETTE.length];
+      renderMiniChart(mmIds[i],d,c,'transparent',false);
+      const card=document.getElementById(mmIds[i])?.closest('.mini-marker-card');
+      if(card){
+        const ve=card.querySelector('.mm-val'), le=card.querySelector('.mm-latest');
+        if(ve) ve.textContent=latest;
+        if(le){le.classList.remove('ok','warn','bad');le.classList.add(status);}
+      }
+    });
 
-  // Service Worker 등록
+    // ── 검진수치 탭 차트 업데이트 ──
+    const chartKeys={wbcChart:'WBC',hbChart:'Hb',crChart:'Cr'};
+    Object.entries(chartKeys).forEach(([cid,key])=>{
+      const rows=labs.filter(r=>r.key===key)
+        .map(r=>({_d:parseDate(r.date),val:parseFloat(r.value),lbl:fmtMD(r.date)}))
+        .sort((a,b)=>a._d-b._d);
+      if(!rows.length) return;
+      const inst=_labCharts[cid];
+      if(!inst) return;
+      inst.data.labels=rows.map(r=>r.lbl);
+      inst.data.datasets[0].data=rows.map(r=>r.val);
+      inst.update();
+      const latest=rows[rows.length-1];
+      const card=document.getElementById(cid)?.closest('.chart-card');
+      if(card&&latest) {
+        const ve=card.querySelector('.chart-latest .val');
+        if(ve) ve.textContent=latest.val;
+        const def=defMap[key];
+        if(def){const se=card.querySelector('.chart-sub');if(se)se.textContent=`정상 ${def.normal_min||''}–${def.normal_max||''} ${def.unit||''}`;}
+      }
+    });
+
+    // 종양표지자 (CEA, CA19-9, NMP22)
+    const tInst=_labCharts.tumorChart;
+    if(tInst){
+      ['CEA','CA19-9','NMP22'].forEach((key,i)=>{
+        const rows=labs.filter(r=>r.key===key).map(r=>({_d:parseDate(r.date),val:parseFloat(r.value),lbl:fmtMD(r.date)})).sort((a,b)=>a._d-b._d);
+        if(!rows.length||!tInst.data.datasets[i]) return;
+        tInst.data.labels=rows.map(r=>r.lbl);
+        tInst.data.datasets[i].data=rows.map(r=>r.val);
+      });
+      tInst.update();
+    }
+
+    // PLT
+    const pInst=_labCharts.pltChart;
+    if(pInst){
+      const rows=labs.filter(r=>r.key==='PLT').map(r=>({_d:parseDate(r.date),val:parseFloat(r.value),lbl:fmtMD(r.date)})).sort((a,b)=>a._d-b._d).slice(-8);
+      if(rows.length){
+        pInst.data.labels=rows.map(r=>r.lbl);
+        pInst.data.datasets[0].data=rows.map(r=>r.val);
+        pInst.data.datasets[0].backgroundColor=rows.map((_,i)=>i<rows.length-2?'rgba(59,130,246,.45)':'rgba(245,158,11,.7)');
+        pInst.update();
+      }
+    }
+  }
+
+  // 시트4(profile): key/value
+  function applyProfile(profile) {
+    const m={};
+    profile.forEach(r=>{m[r.key]=r.value;});
+    const av=document.querySelector('.header-avatar');
+    if(av&&m.name) av.textContent=m.name[0];
+    const pn=document.querySelector('.prof-name');
+    if(pn&&m.name) pn.textContent=m.name;
+    const ps=document.querySelector('.prof-sub');
+    if(ps&&m.diagnosis&&m.stage) ps.textContent=`${m.diagnosis} ${m.stage} · GC 항암요법 진행 중`;
+    const infoCards=document.querySelectorAll('.info-card');
+    const infoMap={0:['진단명',m.diagnosis,''],1:['병기',m.stage,''],2:['수술일',m.surgery_date,''],3:['치료','GC 항암요법','6사이클'],4:['담당 주치의',m.doctor,''],5:['병원',m.hospital,'']};
+    infoCards.forEach((c,i)=>{
+      if(!infoMap[i]) return;
+      const [lbl,val,sub]=infoMap[i];
+      const lv=c.querySelector('.info-label'),vv=c.querySelector('.info-value');
+      if(lv) lv.textContent=lbl;
+      if(vv) vv.textContent=sub?`${val}\n${sub}`:val;
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 일정 탭 필터 칩
+  // ═══════════════════════════════════════════════════════════
+  function initScheduleFilter() {
+    document.querySelectorAll('#tab-schedule .filter-chip').forEach(chip=>{
+      chip.addEventListener('click',()=>{
+        document.querySelectorAll('#tab-schedule .filter-chip').forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+        const f=chip.textContent.trim();
+        document.querySelectorAll('#tab-schedule .schedule-card').forEach(card=>{
+          card.style.display=(f==='전체'||card.querySelector('.event-badge')?.textContent===f)?'':'none';
+        });
+      });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SHEETS FETCH
+  // ═══════════════════════════════════════════════════════════
+  async function loadSheets() {
+    if (!SHEETS_URL) return;
+    try {
+      const res = await fetch(SHEETS_URL);
+      const data = await res.json();
+      if (data.schedule?.length) applySchedule(data.schedule);
+      if (data.labs?.length)     applyLabs(data.labs, data.labDefs||[]);
+      if (data.profile?.length)  applyProfile(data.profile);
+      console.log('✅ Sheets 연동 완료:', data.updatedAt);
+    } catch(e) {
+      console.warn('⚠️ Sheets 오프라인, 기본 데이터 사용:', e.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BOOT
+  // ═══════════════════════════════════════════════════════════
+  initStaticCharts();
+  initScheduleFilter();
+  loadSheets();
+
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
 </script>
 </body>

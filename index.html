@@ -995,6 +995,7 @@
     .mm-latest.ok   .mm-val { color: var(--accent); }
     .mm-latest.warn .mm-val { color: var(--warn); }
     .mm-latest.bad  .mm-val { color: var(--danger); }
+    .mm-chart-wrap { position: relative; height: 68px; width: 100%; }
     .mm-date { font-size:9px; color:var(--text-muted); margin-top:2px; }
 
     /* ════════════════════════════════
@@ -1222,42 +1223,42 @@
               <div><div class="mm-title">NMP22</div><div class="mm-sub">방광암 표지자</div></div>
               <div class="mm-latest ok"><div class="mm-val">4.8</div><div class="mm-unit">U/mL · &lt;10</div></div>
             </div>
-            <canvas id="mm1" height="68" style="height:68px!important"></canvas>
+            <div class="mm-chart-wrap"><canvas id="mm1"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">RBC</div><div class="mm-sub">적혈구</div></div>
               <div class="mm-latest warn"><div class="mm-val">3.7</div><div class="mm-unit">M/μL · 4.2↑</div></div>
             </div>
-            <canvas id="mm2" height="68" style="height:68px!important"></canvas>
+            <div class="mm-chart-wrap"><canvas id="mm2"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">WBC</div><div class="mm-sub">백혈구</div></div>
               <div class="mm-latest warn"><div class="mm-val">3.2k</div><div class="mm-unit">/μL · 4k↑</div></div>
             </div>
-            <canvas id="mm3" height="68" style="height:68px!important"></canvas>
+            <div class="mm-chart-wrap"><canvas id="mm3"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">NLR</div><div class="mm-sub">호중구/림프구비</div></div>
               <div class="mm-latest ok"><div class="mm-val">2.6</div><div class="mm-unit">비율 · &lt;3</div></div>
             </div>
-            <canvas id="mm4" height="68" style="height:68px!important"></canvas>
+            <div class="mm-chart-wrap"><canvas id="mm4"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">PSA</div><div class="mm-sub">전립선 특이항원</div></div>
               <div class="mm-latest ok"><div class="mm-val">0.5</div><div class="mm-unit">ng/mL · &lt;4</div></div>
             </div>
-            <canvas id="mm5" height="68" style="height:68px!important"></canvas>
+            <div class="mm-chart-wrap"><canvas id="mm5"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">eGFR</div><div class="mm-sub">사구체여과율</div></div>
               <div class="mm-latest warn"><div class="mm-val">60</div><div class="mm-unit">mL/min · 60↑</div></div>
             </div>
-            <canvas id="mm6" height="68" style="height:68px!important"></canvas>
+            <div class="mm-chart-wrap"><canvas id="mm6"></canvas></div>
           </div>
         </div>
 

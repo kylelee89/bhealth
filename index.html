@@ -990,7 +990,7 @@
     <!-- ══════ HOME ══════ -->
     <div id="tab-home" class="panel active">
       <div class="page">
-        <div class="page-title">안녕하세요, 김○○님 👋</div>
+        <div class="page-title" id="greetingText">안녕하세요, 김○○님 👋</div>
 
         <!-- Hero countdown -->
         <div class="hero-card">
@@ -2090,6 +2090,8 @@
     profile.forEach(r=>{m[r.key]=r.value;});
     const av=document.querySelector('.header-avatar');
     if(av&&m.name) av.textContent=m.name[0];
+    const gr=document.getElementById('greetingText');
+    if(gr&&m.name) gr.textContent=`안녕하세요, ${m.name}님 👋`;
     const pn=document.querySelector('.prof-name');
     if(pn&&m.name) pn.textContent=m.name;
     const ps=document.querySelector('.prof-sub');

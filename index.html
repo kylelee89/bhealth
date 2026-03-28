@@ -1208,7 +1208,7 @@
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
-              <div><div class="mm-title">eGFR</div><div class="mm-sub">사구체여과율</div></div>
+              <div><div class="mm-title">eGFR</div><div class="mm-sub">신장기능(사구체여과율)</div></div>
               <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
             </div>
             <div class="mm-chart-wrap"><canvas id="mm6"></canvas></div>
@@ -1985,14 +1985,24 @@
     }
 
     // ── 미니 마커 카드 (홈 탭) ──
-    const mmKeys=['NMP22','RBC','WBC','NLR','PSA','eGFR'];
+    // NLR = ANC/ALC (계산값) — Sheets에 직접 저장 안 됨
+    const ancByDate={}, alcByDate={};
+    labs.filter(r=>r.key==='ANC').forEach(r=>{ancByDate[r.date]=parseFloat(r.value);});
+    labs.filter(r=>r.key==='ALC').forEach(r=>{alcByDate[r.date]=parseFloat(r.value);});
+    const nlrRows = Object.keys(ancByDate)
+      .filter(d=>alcByDate[d]&&alcByDate[d]>0)
+      .map(d=>({key:'NLR',date:d,value:String((ancByDate[d]/alcByDate[d]).toFixed(2))}));
+    const labsWithNLR = [...labs, ...nlrRows];
+
+    const mmKeys=['NMP22','RBC','WBC','NLR','Total PSA','Estimated GFR'];
     const mmIds=['mm1','mm2','mm3','mm4','mm5','mm6'];
     mmKeys.forEach((key,i)=>{
       const def=defMap[key]||{};
+      const labSrc = labsWithNLR;
       const card=document.getElementById(mmIds[i])?.closest('.mini-marker-card');
       const tip=getTip(key,def);
       if(card&&tip){ card.classList.add('has-tip'); card.dataset.tip=tip; }
-      const rows=labs.filter(r=>r.key===key)
+      const rows=labSrc.filter(r=>r.key===key)
         .map(r=>({_d:parseDate(r.date),val:parseFloat(r.value)}))
         .filter(r=>!isNaN(r.val))
         .sort((a,b)=>a._d-b._d).slice(-8);

@@ -2066,7 +2066,7 @@
     filterLabs(window._currentLabCat||'');
   }
 
-  function filterLabs(cat, btn) {
+  window.filterLabs = function filterLabs(cat, btn) {
     window._currentLabCat=cat;
     document.querySelectorAll('#labCategoryFilters .filter-chip').forEach(b=>b.classList.remove('active'));
     if(btn) btn.classList.add('active');

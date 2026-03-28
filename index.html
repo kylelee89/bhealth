@@ -2056,7 +2056,12 @@
     const mmKeys=['NMP22','RBC','WBC','NLR','PSA','eGFR'];
     const mmIds=['mm1','mm2','mm3','mm4','mm5','mm6'];
     mmKeys.forEach((key,i)=>{
-      const def=defMap[key]; if(!def) return;
+      const def=defMap[key];
+      // tooltip은 def 유무와 무관하게 설정
+      const card=document.getElementById(mmIds[i])?.closest('.mini-marker-card');
+      const tip=getTip(key,def);
+      if(card&&tip){ card.classList.add('has-tip'); card.dataset.tip=tip; }
+      if(!def) return;
       const rows=labs.filter(r=>r.key===key)
         .map(r=>({_d:parseDate(r.date),val:parseFloat(r.value)}))
         .sort((a,b)=>a._d-b._d).slice(-8);
@@ -2068,17 +2073,16 @@
       else if(!isNaN(mn)) status=latest<mn?'warn':'ok';
       else if(!isNaN(mx)) status=latest>mx?'warn':'ok';
       renderMiniChart(mmIds[i],d,PALETTE[i%PALETTE.length],'transparent',false);
-      const card=document.getElementById(mmIds[i])?.closest('.mini-marker-card');
       if(card){
         const ve=card.querySelector('.mm-val'), le=card.querySelector('.mm-latest');
         const latestRow=rows[rows.length-1];
         if(ve) ve.textContent=latest;
         if(le){le.classList.remove('ok','warn','bad');le.classList.add(status);}
+        // 날짜를 mm-sub 아래(왼쪽 컬럼)에 표시
+        const leftCol=card.querySelector('.mm-header > div:first-child');
         let de=card.querySelector('.mm-date');
-        if(!de){de=document.createElement('div');de.className='mm-date';le?.appendChild(de);}
+        if(!de){de=document.createElement('div');de.className='mm-date';leftCol?.appendChild(de);}
         if(de&&latestRow) de.textContent=fmtMD(latestRow._d.toISOString().slice(0,10));
-        const tip=getTip(key,def);
-        if(tip){ card.classList.add('has-tip'); card.dataset.tip=tip; }
       }
     });
 

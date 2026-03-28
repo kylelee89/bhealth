@@ -848,6 +848,37 @@
     .cs-tl-st-evt.nk  .cs-tl-st-dot { background:#059669; box-shadow:0 0 0 1.5px #059669; }
     .cs-tl-st-evt.bcg .cs-tl-st-lbl { color:#7C3AED; }
     .cs-tl-st-evt.nk  .cs-tl-st-lbl { color:#059669; }
+    /* ── 다음 일정 히어로 카드 ── */
+    .hero-next-card {
+      background: linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%);
+      border-radius: 20px; padding: 20px 20px;
+      display: flex; align-items: center; gap: 14px;
+      color: white; margin-bottom: 16px;
+    }
+    .hnc-icon { font-size: 26px; flex-shrink: 0; }
+    .hnc-body { flex: 1; min-width: 0; }
+    .hnc-label { font-size: 10px; font-weight: 700; opacity: .65; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 4px; }
+    .hnc-title { font-size: 18px; font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hnc-sub   { font-size: 12px; opacity: .75; margin-top: 3px; }
+    .hnc-none  { font-size: 14px; opacity: .6; }
+    .hnc-dday  { background: rgba(255,255,255,.15); border-radius: 14px; padding: 10px 16px; text-align: center; flex-shrink: 0; }
+    .hnc-dday-num  { font-size: 20px; font-weight: 900; line-height: 1; }
+    .hnc-dday-unit { font-size: 10px; opacity: .75; margin-top: 2px; }
+
+    /* ── 주요 수치 카드 ── */
+    .key-metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .km-card { background: white; border-radius: 14px; padding: 14px 14px 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .km-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .km-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .km-name { font-size: 11px; font-weight: 700; color: var(--text-muted); flex: 1; }
+    .km-date { font-size: 10px; color: #CBD5E1; }
+    .km-value { font-size: 22px; font-weight: 900; line-height: 1; color: var(--text); }
+    .km-unit  { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+    .km-interp { font-size: 10px; margin-top: 7px; line-height: 1.35; padding-top: 7px; border-top: 1px solid #F1F5F9; }
+    .km-interp.ok     { color: var(--accent); }
+    .km-interp.warn   { color: var(--warn); }
+    .km-interp.danger { color: var(--danger); }
+
     /* 히어로 카드 완료 상태 */
     .hero-card.done { background: linear-gradient(135deg,#1E3A5F 0%,#374151 100%); }
     .hero-done-badge { display:inline-block; background:rgba(255,255,255,.15); border-radius:8px; padding:3px 10px; font-size:11px; font-weight:700; margin-top:6px; }
@@ -1053,22 +1084,20 @@
       <div class="page">
         <div class="page-title" id="greetingText">안녕하세요, 김○○님 👋</div>
 
-        <!-- Hero countdown -->
-        <div class="hero-card">
-          <div class="hero-left">
-            <h3>다음 항암까지</h3>
-            <div class="big">5</div>
-            <div class="unit">일 남았습니다</div>
-          </div>
-          <div class="hero-right">
-            <div class="chemo-name">GC 항암요법</div>
-            <div class="chemo-date">2026. 03. 31 (화)</div>
-            <div class="cycle-pill">5차 / 6차</div>
+        <!-- Next event hero card -->
+        <div class="hero-next-card" id="heroNextCard">
+          <div class="hnc-icon">📅</div>
+          <div class="hnc-body">
+            <div class="hnc-label">다음 일정</div>
+            <div class="hnc-none">로딩 중...</div>
           </div>
         </div>
 
-        <!-- Summary chips — dynamically filled by applySchedule -->
-        <div class="summary-scroll" id="summaryChips"></div>
+        <!-- Key metrics grid — filled by applyLabs -->
+        <div class="section-header" style="margin-top:4px">
+          <h2>주요 수치</h2>
+        </div>
+        <div class="key-metrics-grid" id="keyMetricsGrid"></div>
 
         <!-- Upcoming events -->
         <div class="section-header">
@@ -1809,41 +1838,35 @@
       .filter(e=>e._d)
       .sort((a,b)=>a._d-b._d);
 
-    // ── 히어로 카드 (다음 항암) ──
-    const nextChemo = sorted.find(e=>e.type==='항암' && e._d>=today);
+    // ── 다음 일정 히어로 카드 ──
     const chemoAll  = sorted.filter(e=>e.type==='항암');
     const pastCnt   = chemoAll.filter(e=>e._d<today).length;
-    const heroCard  = document.querySelector('.hero-card');
-    if (nextChemo) {
-      const days = daysUntil(nextChemo.date);
-      if (heroCard) heroCard.classList.remove('done');
-      const hl = document.querySelector('.hero-left');
-      if (hl) {
-        hl.querySelector('h3').textContent = '다음 항암까지';
-        hl.querySelector('.big').textContent = days;
-        hl.querySelector('.unit').textContent = days===0?'오늘입니다!':'일 남았습니다';
-      }
-      const hr = document.querySelector('.hero-right');
-      if (hr) {
-        hr.querySelector('.chemo-name').textContent = nextChemo.drug || nextChemo.title;
-        hr.querySelector('.chemo-date').textContent = fmtKorDate(nextChemo.date);
-        hr.querySelector('.cycle-pill').textContent = `${pastCnt+1}차`;
-      }
-    } else {
-      // 예정된 항암 없음 → 완료 상태 표시
-      if (heroCard) heroCard.classList.add('done');
-      const lastChemo = chemoAll.filter(e=>e._d<today).slice(-1)[0];
-      const hl = document.querySelector('.hero-left');
-      if (hl) {
-        hl.querySelector('h3').textContent = '총 완료';
-        hl.querySelector('.big').textContent = pastCnt;
-        hl.querySelector('.unit').textContent = '회 완료';
-      }
-      const hr = document.querySelector('.hero-right');
-      if (hr && lastChemo) {
-        hr.querySelector('.chemo-name').textContent = '마지막: ' + (lastChemo.drug||lastChemo.title);
-        hr.querySelector('.chemo-date').textContent = fmtKorDate(lastChemo.date);
-        hr.querySelector('.cycle-pill').textContent = '완료';
+    const nextAny   = sorted.find(e=>e._d>=today);
+    const heroCard  = document.getElementById('heroNextCard');
+    if (heroCard) {
+      if (nextAny) {
+        const days = daysUntil(nextAny.date);
+        const typeIcon = {항암:'💊', 검진:'🩺', 외래:'🏥', 이노크라스:'🔬'};
+        const icon = typeIcon[nextAny.type] || '📅';
+        const sub = [nextAny.place, nextAny.time].filter(Boolean).join(' · ');
+        heroCard.innerHTML = `
+          <div class="hnc-icon">${icon}</div>
+          <div class="hnc-body">
+            <div class="hnc-label">다음 일정</div>
+            <div class="hnc-title">${nextAny.drug||nextAny.title}</div>
+            <div class="hnc-sub">${fmtKorDate(nextAny.date)}${sub?' · '+sub:''}</div>
+          </div>
+          <div class="hnc-dday">
+            <div class="hnc-dday-num">${days===0?'오늘':'D-'+days}</div>
+            ${days>0?`<div class="hnc-dday-unit">일 후</div>`:''}
+          </div>`;
+      } else {
+        heroCard.innerHTML = `
+          <div class="hnc-icon">✅</div>
+          <div class="hnc-body">
+            <div class="hnc-label">다음 일정</div>
+            <div class="hnc-none">예정된 일정이 없습니다</div>
+          </div>`;
       }
     }
 
@@ -1904,25 +1927,6 @@
           </div>
         </div>${idx<entries.length-1?'<div class="cs-divider"></div>':''}
       `).join('');
-    }
-
-    // ── Summary chips ──
-    const sc = document.getElementById('summaryChips');
-    if (sc) {
-      const lastChemo = chemoAll.filter(e=>e._d<today).slice(-1)[0];
-      const thisMonth = sorted.filter(e=>{const d=e._d;return d>=today&&d.getMonth()===today.getMonth()&&d.getFullYear()===today.getFullYear();});
-      const chips=[];
-      if(nextChemo){
-        const days=daysUntil(nextChemo.date);
-        chips.push(`<div class="summary-chip"><div class="chip-icon blue">💊</div><div><div class="chip-label">다음 항암</div><div class="chip-value" style="color:var(--primary)">D-${days}</div><div class="chip-sub">${fmtMD(nextChemo.date)} · ${nextChemo.drug||nextChemo.title}</div></div></div>`);
-      } else if(lastChemo){
-        chips.push(`<div class="summary-chip"><div class="chip-icon blue">💊</div><div><div class="chip-label">마지막 항암</div><div class="chip-value" style="color:var(--text-muted)">${fmtMD(lastChemo.date)}</div><div class="chip-sub">${lastChemo.drug||lastChemo.title}</div></div></div>`);
-      }
-      chips.push(`<div class="summary-chip"><div class="chip-icon green">🏥</div><div><div class="chip-label">총 항암 완료</div><div class="chip-value" style="color:var(--accent)">${pastCnt}회</div><div class="chip-sub">${[...new Set(chemoAll.map(e=>e.drug||e.title))].join(' · ')}</div></div></div>`);
-      if(thisMonth.length){
-        chips.push(`<div class="summary-chip"><div class="chip-icon amber">📋</div><div><div class="chip-label">이번 달 일정</div><div class="chip-value" style="color:var(--warn)">${thisMonth.length}건</div><div class="chip-sub">${[...new Set(thisMonth.map(e=>e.type))].join('·')}</div></div></div>`);
-      }
-      sc.innerHTML=chips.join('');
     }
 
     // ── 일정 탭 전체 ──
@@ -1992,6 +1996,48 @@
         else if(d.chemos?.length) cTick[i]=d.chemos.join('+');
       });
       renderInocrasChart(labels,uData,bMap,cTick);
+    }
+
+    // ── 주요 수치 카드 (홈 탭) ──
+    const PRIORITY_KEYS = ['WBC','Hb','헤모글로빈','PLT','혈소판','eGFR','Inocras_소변','NMP22'];
+    function interpretMetric(key, latest, prev, def) {
+      const trend = prev===undefined ? null : latest>prev?'up':latest<prev?'down':'same';
+      const R = {
+        WBC:()=>latest<2?{m:'심각한 감소 — 즉시 의료진 연락',l:'danger'}:latest<4?{m:'낮음 — 다음 항암 전 재확인 필요',l:'warn'}:{m:'정상 — 항암 진행 가능 수준',l:'ok'},
+        Hb:()=>latest<8?{m:'심한 빈혈 — 수혈 고려 필요',l:'danger'}:latest<11?{m:'빈혈 — 피로·어지럼증 주의',l:'warn'}:{m:'정상 — 빈혈 없음',l:'ok'},
+        PLT:()=>latest<50?{m:'심각 저하 — 출혈 주의',l:'danger'}:latest<100?{m:'감소 — 멍·출혈 주의',l:'warn'}:{m:'정상 범위',l:'ok'},
+        eGFR:()=>latest<30?{m:'심각 저하 — 항암 용량 조정 필요',l:'danger'}:latest<60?{m:'저하 — 수분 충분히 섭취',l:'warn'}:{m:'신기능 양호',l:'ok'},
+        Inocras_소변:()=>trend==='down'?{m:'치료 반응 양호 — 이전보다 감소',l:'ok'}:trend==='up'?{m:'수치 상승 — 의료진 확인 권장',l:'warn'}:{m:'최근 측정값',l:'ok'},
+        NMP22:()=>{const mx=parseFloat(def?.normal_max);return !isNaN(mx)&&latest>mx?{m:`정상 상한(${mx}) 초과 — 방광암 표지자 상승`,l:'warn'}:{m:'정상 범위 이내',l:'ok'};}
+      };
+      R['헤모글로빈']=R.Hb; R['혈소판']=R.PLT;
+      if(R[key]) return R[key]();
+      const mn=parseFloat(def?.normal_min), mx=parseFloat(def?.normal_max);
+      if(!isNaN(mn)&&latest<mn) return {m:'정상 하한 미달',l:'warn'};
+      if(!isNaN(mx)&&latest>mx) return {m:'정상 상한 초과',l:'warn'};
+      return {m:trend==='down'?'이전보다 감소':trend==='up'?'이전보다 증가':'최근 측정값',l:'ok'};
+    }
+    const kmGrid=document.getElementById('keyMetricsGrid');
+    if(kmGrid){
+      const seen=new Set(); const cards=[];
+      PRIORITY_KEYS.forEach((key,idx)=>{
+        if(seen.has(key)||cards.length>=6) return;
+        const rows=labs.filter(r=>r.key===key).map(r=>({_d:parseDate(r.date),val:parseFloat(r.value)})).filter(r=>!isNaN(r.val)).sort((a,b)=>a._d-b._d);
+        if(!rows.length) return;
+        const def=defMap[key]||{};
+        const latest=rows[rows.length-1].val, prev=rows[rows.length-2]?.val;
+        const latestDate=fmtMD(rows[rows.length-1]._d.toISOString().slice(0,10));
+        const {m,l}=interpretMetric(key,latest,prev,def);
+        const color=PALETTE[cards.length%PALETTE.length];
+        seen.add(key); if(key==='Hb')seen.add('헤모글로빈'); if(key==='헤모글로빈')seen.add('Hb'); if(key==='PLT')seen.add('혈소판');
+        cards.push(`<div class="km-card">
+          <div class="km-header"><div class="km-dot" style="background:${color}"></div><div class="km-name">${def.name||key}</div><div class="km-date">${latestDate}</div></div>
+          <div class="km-value">${latest}</div>
+          <div class="km-unit">${def.unit||''}</div>
+          <div class="km-interp ${l}">${m}</div>
+        </div>`);
+      });
+      kmGrid.innerHTML=cards.join('');
     }
 
     // ── 미니 마커 카드 (홈 탭) ──

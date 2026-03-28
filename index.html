@@ -815,6 +815,20 @@
       text-align: right;
     }
     .cs-next-lbl { font-size: 9px; color: var(--text-muted); font-weight: 600; }
+    /* 날짜 칩 wrap 레이아웃 */
+    .cs-drug-block { margin-bottom: 4px; }
+    .cs-drug-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .cs-dates-wrap { display:flex; flex-wrap:wrap; gap:5px; }
+    .cs-date-chip {
+      font-size:10px; font-weight:600; color:var(--primary);
+      background:var(--primary-light); border-radius:6px;
+      padding:3px 7px; white-space:nowrap;
+    }
+    .cs-date-chip.bcg  { color:#7C3AED; background:#EDE9FE; }
+    .cs-date-chip.nk   { color:#059669; background:#D1FAE5; }
+    /* 히어로 카드 완료 상태 */
+    .hero-card.done { background: linear-gradient(135deg,#1E3A5F 0%,#374151 100%); }
+    .hero-done-badge { display:inline-block; background:rgba(255,255,255,.15); border-radius:8px; padding:3px 10px; font-size:11px; font-weight:700; margin-top:6px; }
     .cs-next-val { font-size: 11px; font-weight: 800; color: var(--warn); }
 
     /* ════════════════════════════════
@@ -1795,10 +1809,15 @@
 
     // ── 히어로 카드 (다음 항암) ──
     const nextChemo = sorted.find(e=>e.type==='항암' && e._d>=today);
+    const chemoAll  = sorted.filter(e=>e.type==='항암');
+    const pastCnt   = chemoAll.filter(e=>e._d<today).length;
+    const heroCard  = document.querySelector('.hero-card');
     if (nextChemo) {
       const days = daysUntil(nextChemo.date);
+      if (heroCard) heroCard.classList.remove('done');
       const hl = document.querySelector('.hero-left');
       if (hl) {
+        hl.querySelector('h3').textContent = '다음 항암까지';
         hl.querySelector('.big').textContent = days;
         hl.querySelector('.unit').textContent = days===0?'오늘입니다!':'일 남았습니다';
       }
@@ -1806,9 +1825,23 @@
       if (hr) {
         hr.querySelector('.chemo-name').textContent = nextChemo.drug || nextChemo.title;
         hr.querySelector('.chemo-date').textContent = fmtKorDate(nextChemo.date);
-        const chemoAll = sorted.filter(e=>e.type==='항암');
-        const pastCnt  = chemoAll.filter(e=>e._d<today).length;
         hr.querySelector('.cycle-pill').textContent = `${pastCnt+1}차`;
+      }
+    } else {
+      // 예정된 항암 없음 → 완료 상태 표시
+      if (heroCard) heroCard.classList.add('done');
+      const lastChemo = chemoAll.filter(e=>e._d<today).slice(-1)[0];
+      const hl = document.querySelector('.hero-left');
+      if (hl) {
+        hl.querySelector('h3').textContent = '총 완료';
+        hl.querySelector('.big').textContent = pastCnt;
+        hl.querySelector('.unit').textContent = '회 완료';
+      }
+      const hr = document.querySelector('.hero-right');
+      if (hr && lastChemo) {
+        hr.querySelector('.chemo-name').textContent = '마지막: ' + (lastChemo.drug||lastChemo.title);
+        hr.querySelector('.chemo-date').textContent = fmtKorDate(lastChemo.date);
+        hr.querySelector('.cycle-pill').textContent = '완료';
       }
     }
 
@@ -1842,23 +1875,23 @@
     const groups={};
     chemoEvts.forEach(e=>{
       const name=e.drug||e.title;
-      if(!groups[name]) groups[name]={past:[],next:null};
-      if(e._d<today) groups[name].past.push(e);
+      if(!groups[name]) groups[name]={all:[],next:null};
+      if(e._d<today) groups[name].all.push(e);
       else if(!groups[name].next) groups[name].next=e;
     });
     const csCard = document.querySelector('.chemo-status-card');
     if (csCard) {
+      const chipClass = n=>n==='BCG'?'bcg':n==='NK세포치료'?'nk':'';
       const entries=Object.entries(groups);
       csCard.innerHTML=entries.map(([name,g],idx)=>`
-        <div class="cs-row">
-          <div class="cs-info"><div class="cs-name">${name}</div><div class="cs-sub">항암치료</div></div>
-          <div class="cs-timeline-scroll"><div class="cs-tl-inner">
-            <div class="cs-tl-line"></div>
-            ${g.past.map(e=>`<div class="cs-tl-event"><div class="cs-tl-dot"></div><div class="cs-tl-date-label">${fmtMD(e.date)}</div></div>`).join('')}
-          </div></div>
-          <div class="cs-right">
-            <div class="cs-count-pill">${g.past.length}회</div>
-            ${g.next?`<div class="cs-next-box"><div class="cs-next-lbl">다음 일정</div><div class="cs-next-val">${fmtMD(g.next.date)} (${['일','월','화','수','목','금','토'][g.next._d.getDay()]})</div></div>`:''}
+        <div class="cs-drug-block">
+          <div class="cs-drug-header">
+            <div class="cs-name">${name}</div>
+            <div class="cs-count-pill">${g.all.length}회</div>
+            ${g.next?`<div class="cs-next-box" style="margin-left:auto"><div class="cs-next-lbl">다음</div><div class="cs-next-val">${fmtMD(g.next.date)} (${['일','월','화','수','목','금','토'][g.next._d.getDay()]})</div></div>`:''}
+          </div>
+          <div class="cs-dates-wrap">
+            ${g.all.map(e=>`<span class="cs-date-chip ${chipClass(name)}">${fmtMD(e.date)}</span>`).join('')}
           </div>
         </div>${idx<entries.length-1?'<div class="cs-divider"></div>':''}
       `).join('');
@@ -1890,7 +1923,7 @@
   }
 
   // 시트2(labs) + 시트3(labDefs)
-  function applyLabs(labs, labDefs) {
+  function applyLabs(labs, labDefs, schedule=[]) {
     const defMap={};
     labDefs.forEach(d=>{defMap[d.key]=d;});
 
@@ -1898,16 +1931,39 @@
     const inoRows=labs.filter(r=>String(r.key).startsWith('Inocras_'))
       .map(r=>({...r,_d:parseDate(r.date)})).sort((a,b)=>a._d-b._d);
     if(inoRows.length){
-      const allDates=[...new Set(inoRows.map(r=>r.date))].sort();
-      const labels=allDates.map(fmtMD);
+      // 이노크라스 측정 날짜
+      const inoDates=[...new Set(inoRows.map(r=>r.date))].sort((a,b)=>parseDate(a)-parseDate(b));
+      // 항암 날짜 (BCG, 키트루다)
+      const chemoRows=schedule
+        .filter(e=>e.type==='항암')
+        .map(e=>({...e,_d:parseDate(e.date)}))
+        .sort((a,b)=>a._d-b._d);
+      // 통합 타임라인: 이노크라스 날짜 + 항암 날짜 합산 후 정렬, 이노크라스 기준 7일 이내는 병합
+      const combined=[];
+      const inoDateObjs=inoDates.map(d=>({date:d,_d:parseDate(d),isIno:true}));
+      chemoRows.forEach(c=>{
+        // 이노크라스 날짜와 7일 이내면 병합(이노크라스 날짜 우선)
+        const near=inoDateObjs.find(i=>Math.abs(i._d-c._d)<=7*86400000);
+        if(near){ if(!near.chemos) near.chemos=[]; near.chemos.push(c.drug||c.title); }
+        else combined.push({date:c.date,_d:c._d,isChemo:true,drug:c.drug||c.title});
+      });
+      const all=[...inoDateObjs,...combined].sort((a,b)=>a._d-b._d);
+      const labels=all.map(d=>fmtMD(d.date));
       const uMap={},bMap={};
       inoRows.forEach(r=>{
-        const idx=allDates.indexOf(r.date);
+        const idx=all.findIndex(d=>d.isIno&&d.date===r.date);
+        if(idx<0) return;
         if(r.key==='Inocras_소변') uMap[idx]=parseFloat(r.value)||null;
         if(r.key==='Inocras_혈액') bMap[idx]=(+r.value===1);
       });
-      const uData=allDates.map((_,i)=>uMap[i]!==undefined?uMap[i]:null);
-      renderInocrasChart(labels,uData,bMap,{});
+      const uData=all.map((_,i)=>uMap[i]!==undefined?uMap[i]:null);
+      // cTick 빌드: 항암 이름 표시 (이노크라스 날짜에 병합된 항암 포함)
+      const cTick={};
+      all.forEach((d,i)=>{
+        if(d.isChemo) cTick[i]=d.drug;
+        else if(d.chemos?.length) cTick[i]=d.chemos.join('+');
+      });
+      renderInocrasChart(labels,uData,bMap,cTick);
     }
 
     // ── 미니 마커 카드 (홈 탭) ──
@@ -2131,7 +2187,7 @@
       const res = await fetch(SHEETS_URL + '?t=' + Date.now()); // 캐시 무효화
       const data = await res.json();
       if (data.schedule?.length) applySchedule(data.schedule);
-      if (data.labs?.length)     applyLabs(data.labs, data.labDefs||[]);
+      if (data.labs?.length)     applyLabs(data.labs, data.labDefs||[], data.schedule||[]);
       if (data.profile?.length)  applyProfile(data.profile);
       const now = new Date();
       if (timeEl) timeEl.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;

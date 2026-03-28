@@ -1095,54 +1095,7 @@
           <span class="see-all" onclick="showTab('schedule')">전체보기 →</span>
         </div>
         <div class="event-list">
-          <div class="event-item today">
-            <div class="event-date-block today-color">
-              <div class="month">MAR</div>
-              <div class="day">26</div>
-            </div>
-            <div class="event-divider" style="background:var(--primary);opacity:.3"></div>
-            <div class="event-body">
-              <div class="event-title">외래 진료 (비뇨의학과)</div>
-              <div class="event-sub">10:30 · 서울대학교병원 6층</div>
-            </div>
-            <span class="event-badge badge-today">오늘</span>
-          </div>
-          <div class="event-item">
-            <div class="event-date-block">
-              <div class="month">MAR</div>
-              <div class="day">28</div>
-            </div>
-            <div class="event-divider"></div>
-            <div class="event-body">
-              <div class="event-title">혈액 검사</div>
-              <div class="event-sub">08:00 · 항암 전 CBC 확인</div>
-            </div>
-            <span class="event-badge badge-check">검진</span>
-          </div>
-          <div class="event-item">
-            <div class="event-date-block">
-              <div class="month">MAR</div>
-              <div class="day">31</div>
-            </div>
-            <div class="event-divider"></div>
-            <div class="event-body">
-              <div class="event-title">5차 항암 치료 (GC)</div>
-              <div class="event-sub">09:00 · 주사실 3번 · 약 4시간</div>
-            </div>
-            <span class="event-badge badge-chemo">항암</span>
-          </div>
-          <div class="event-item">
-            <div class="event-date-block">
-              <div class="month">APR</div>
-              <div class="day">14</div>
-            </div>
-            <div class="event-divider"></div>
-            <div class="event-body">
-              <div class="event-title">CT 촬영 (복부/골반)</div>
-              <div class="event-sub">14:00 · 영상의학과 · 조영제</div>
-            </div>
-            <span class="event-badge badge-consult">검진</span>
-          </div>
+          <div style="text-align:center;padding:24px 0;color:#94A3B8;font-size:14px;">로딩 중...</div>
         </div>
 
         <!-- ── 항암 치료 현황 ── -->
@@ -1221,42 +1174,42 @@
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">NMP22</div><div class="mm-sub">방광암 표지자</div></div>
-              <div class="mm-latest ok"><div class="mm-val">4.8</div><div class="mm-unit">U/mL · &lt;10</div></div>
+              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
             </div>
             <div class="mm-chart-wrap"><canvas id="mm1"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">RBC</div><div class="mm-sub">적혈구</div></div>
-              <div class="mm-latest warn"><div class="mm-val">3.7</div><div class="mm-unit">M/μL · 4.2↑</div></div>
+              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
             </div>
             <div class="mm-chart-wrap"><canvas id="mm2"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">WBC</div><div class="mm-sub">백혈구</div></div>
-              <div class="mm-latest warn"><div class="mm-val">3.2k</div><div class="mm-unit">/μL · 4k↑</div></div>
+              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
             </div>
             <div class="mm-chart-wrap"><canvas id="mm3"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">NLR</div><div class="mm-sub">호중구/림프구비</div></div>
-              <div class="mm-latest ok"><div class="mm-val">2.6</div><div class="mm-unit">비율 · &lt;3</div></div>
+              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
             </div>
             <div class="mm-chart-wrap"><canvas id="mm4"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">PSA</div><div class="mm-sub">전립선 특이항원</div></div>
-              <div class="mm-latest ok"><div class="mm-val">0.5</div><div class="mm-unit">ng/mL · &lt;4</div></div>
+              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
             </div>
             <div class="mm-chart-wrap"><canvas id="mm5"></canvas></div>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">eGFR</div><div class="mm-sub">사구체여과율</div></div>
-              <div class="mm-latest warn"><div class="mm-val">60</div><div class="mm-unit">mL/min · 60↑</div></div>
+              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
             </div>
             <div class="mm-chart-wrap"><canvas id="mm6"></canvas></div>
           </div>
@@ -1806,18 +1759,7 @@
   // ═══════════════════════════════════════════════════════════
   function initStaticCharts() {
     renderInocrasChart(inoLabels, urineData, bloodMap, chemoTick);
-
-    // 미니 마커 6개
-    const mmDefs = [
-      {id:'mm1',d:[12,10,7.2,6.5,5.9,5.2,4.9,4.8],c:'#3B82F6',bg:'rgba(59,130,246,.08)',fill:true},
-      {id:'mm2',d:[4.8,4.6,4.4,4.2,4.0,3.9,3.8,3.7],c:'#F97316',bg:'rgba(249,115,22,.08)',fill:true},
-      {id:'mm3',d:[7200,6800,6500,4800,3900,5100,4200,3200],c:'#8B5CF6',bg:'transparent',fill:false},
-      {id:'mm4',d:[2.8,3.2,2.9,3.5,2.7,3.1,2.8,2.6],c:'#10B981',bg:'transparent',fill:false},
-      {id:'mm5',d:[0.8,0.7,0.7,0.6,0.6,0.5,0.5,0.5],c:'#14B8A6',bg:'transparent',fill:false},
-      {id:'mm6',d:[72,70,68,65,63,62,61,60],c:'#F59E0B',bg:'rgba(245,158,11,.08)',fill:true},
-    ];
-    mmDefs.forEach(({id,d,c,bg,fill})=>renderMiniChart(id,d,c,bg,fill));
-
+    // 미니 마커는 실제 Sheets 데이터 로드 후 applyLabs에서만 렌더링
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -2046,14 +1988,13 @@
     const mmKeys=['NMP22','RBC','WBC','NLR','PSA','eGFR'];
     const mmIds=['mm1','mm2','mm3','mm4','mm5','mm6'];
     mmKeys.forEach((key,i)=>{
-      const def=defMap[key];
-      // tooltip은 def 유무와 무관하게 설정
+      const def=defMap[key]||{};
       const card=document.getElementById(mmIds[i])?.closest('.mini-marker-card');
       const tip=getTip(key,def);
       if(card&&tip){ card.classList.add('has-tip'); card.dataset.tip=tip; }
-      if(!def) return;
       const rows=labs.filter(r=>r.key===key)
         .map(r=>({_d:parseDate(r.date),val:parseFloat(r.value)}))
+        .filter(r=>!isNaN(r.val))
         .sort((a,b)=>a._d-b._d).slice(-8);
       if(!rows.length) return;
       const d=rows.map(r=>r.val), latest=d[d.length-1];
@@ -2065,9 +2006,10 @@
       const mmLabels=rows.map(r=>fmtMD(r._d.toISOString().slice(0,10)));
       renderMiniChart(mmIds[i],d,PALETTE[i%PALETTE.length],'transparent',false,mmLabels);
       if(card){
-        const ve=card.querySelector('.mm-val'), le=card.querySelector('.mm-latest');
+        const ve=card.querySelector('.mm-val'), ue=card.querySelector('.mm-unit'), le=card.querySelector('.mm-latest');
         const latestRow=rows[rows.length-1];
         if(ve) ve.textContent=latest;
+        if(ue&&def.unit) ue.textContent=def.unit+(def.normal_max?` · ${def.normal_max}↑`:'');
         if(le){le.classList.remove('ok','warn','bad');le.classList.add(status);}
         // 날짜를 mm-sub 아래(왼쪽 컬럼)에 표시
         const leftCol=card.querySelector('.mm-header > div:first-child');
@@ -2259,7 +2201,10 @@
         const color=PALETTE[allKeys.indexOf(key)%PALETTE.length];
         const cardId=`lc_${key.replace(/[^a-zA-Z0-9]/g,'_')}`;
         const normalText=(!isNaN(mn)||!isNaN(mx))?`정상 ${isNaN(mn)?'':mn}–${isNaN(mx)?'':mx} ${def.unit||''}`:(def.unit||'');
-        const card=document.createElement('div'); card.className='chart-card';
+        const cardTip=getTip(key,def);
+        const card=document.createElement('div');
+        card.className=`chart-card${cardTip?' has-tip':''}`;
+        if(cardTip) card.dataset.tip=cardTip;
         card.innerHTML=`
           <div class="chart-header">
             <div>

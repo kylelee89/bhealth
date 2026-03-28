@@ -878,6 +878,17 @@
     .km-interp.ok     { color: var(--accent); }
     .km-interp.warn   { color: var(--warn); }
     .km-interp.danger { color: var(--danger); }
+    /* ── 툴팁 ── */
+    #appTooltip {
+      position: fixed; z-index: 9999; pointer-events: none;
+      background: rgba(15,23,42,.93); color: #F1F5F9;
+      font-size: 12px; line-height: 1.55; padding: 10px 14px;
+      border-radius: 11px; max-width: 230px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.25);
+      display: none; word-break: keep-all;
+    }
+    .has-tip { cursor: pointer; position: relative; }
+    .has-tip .tip-icon { font-size: 9px; color: #94A3B8; margin-left: 3px; vertical-align: middle; }
 
     /* 히어로 카드 완료 상태 */
     .hero-card.done { background: linear-gradient(135deg,#1E3A5F 0%,#374151 100%); }
@@ -1095,7 +1106,7 @@
 
         <!-- Key metrics grid — filled by applyLabs -->
         <div class="section-header" style="margin-top:4px">
-          <h2>주요 수치</h2>
+          <h2>최근 주요 수치</h2>
         </div>
         <div class="key-metrics-grid" id="keyMetricsGrid"></div>
 
@@ -2021,7 +2032,7 @@
     if(kmGrid){
       const seen=new Set(); const cards=[];
       PRIORITY_KEYS.forEach((key,idx)=>{
-        if(seen.has(key)||cards.length>=6) return;
+        if(seen.has(key)||cards.length>=2) return;
         const rows=labs.filter(r=>r.key===key).map(r=>({_d:parseDate(r.date),val:parseFloat(r.value)})).filter(r=>!isNaN(r.val)).sort((a,b)=>a._d-b._d);
         if(!rows.length) return;
         const def=defMap[key]||{};
@@ -2030,8 +2041,9 @@
         const {m,l}=interpretMetric(key,latest,prev,def);
         const color=PALETTE[cards.length%PALETTE.length];
         seen.add(key); if(key==='Hb')seen.add('헤모글로빈'); if(key==='헤모글로빈')seen.add('Hb'); if(key==='PLT')seen.add('혈소판');
-        cards.push(`<div class="km-card">
-          <div class="km-header"><div class="km-dot" style="background:${color}"></div><div class="km-name">${def.name||key}</div><div class="km-date">${latestDate}</div></div>
+        const tip=getTip(key,def);
+        cards.push(`<div class="km-card has-tip" ${tip?`data-tip="${tip.replace(/"/g,'&quot;')}"`:''}>
+          <div class="km-header"><div class="km-dot" style="background:${color}"></div><div class="km-name">${def.name||key}${tip?'<span class="tip-icon">ⓘ</span>':''}</div><div class="km-date">${latestDate}</div></div>
           <div class="km-value">${latest}</div>
           <div class="km-unit">${def.unit||''}</div>
           <div class="km-interp ${l}">${m}</div>
@@ -2065,11 +2077,53 @@
         let de=card.querySelector('.mm-date');
         if(!de){de=document.createElement('div');de.className='mm-date';le?.appendChild(de);}
         if(de&&latestRow) de.textContent=fmtMD(latestRow._d.toISOString().slice(0,10));
+        const tip=getTip(key,def);
+        if(tip){ card.classList.add('has-tip'); card.dataset.tip=tip; }
       }
     });
 
     // ── 검진수치 탭 동적 렌더링 ──
     renderLabsTab(labs, defMap);
+  }
+
+  // ── 툴팁 ──
+  const METRIC_DESC = {
+    'WBC':         '백혈구 — 면역·감염 방어 세포. 항암 후 감소 시 다음 치료가 연기될 수 있음 (기준: 4.0×10³/μL 이상)',
+    'Hb':          '헤모글로빈 — 산소 운반 단백질. 낮으면 빈혈로 피로·어지럼증 발생 (기준: 12 g/dL 이상)',
+    '헤모글로빈':  '헤모글로빈 — 산소 운반 단백질. 낮으면 빈혈로 피로·어지럼증 발생 (기준: 12 g/dL 이상)',
+    'RBC':         '적혈구 — 산소를 운반하는 혈액 세포. 항암 중 감소할 수 있으며 피로와 연관됨',
+    'PLT':         '혈소판 — 지혈을 담당. 낮으면 출혈이 멎지 않거나 멍이 쉽게 생김 (기준: 150×10³/μL 이상)',
+    '혈소판':      '혈소판 — 지혈을 담당. 낮으면 출혈이 멎지 않거나 멍이 쉽게 생김 (기준: 150×10³/μL 이상)',
+    'NLR':         '호중구/림프구 비율 — 면역·염증 상태 지표. 높을수록 예후가 좋지 않을 수 있음 (기준: 3.0 미만)',
+    'PSA':         '전립선 특이 항원 — 전립선 건강 지표. 방광암 환자에서도 주기적 모니터링 권장',
+    'eGFR':        '사구체여과율 — 신장이 노폐물을 걸러내는 능력. 항암제 용량 결정에 중요 (기준: 60 mL/min 이상)',
+    'Cr':          '크레아티닌 — 신장 기능 지표. 높을수록 신기능 저하를 의미',
+    'NMP22':       'NMP22 — 방광암 세포에서 분비되는 핵 기질 단백질. 소변 방광암 재발 감시에 활용 (기준: 10 U/mL 미만)',
+    'Inocras_소변':'이노크라스 소변 수치 — 방광암 관련 바이오마커(ppm). 낮을수록 치료 반응이 좋음',
+    'Inocras_혈액':'이노크라스 혈액 검사 — 혈중 방광암 DNA 검출 여부 (ND=미검출·양호, D=검출·주의)',
+    'CRP':         'C반응성 단백질 — 염증 지표. 감염·조직 손상 시 급격히 상승 (기준: 0.5 mg/dL 미만)',
+    'Weight':      '체중 — 항암 중 5% 이상 감소 시 영양 상태 저하 신호로 의료진 상담 필요',
+    '체중':        '체중 — 항암 중 5% 이상 감소 시 영양 상태 저하 신호로 의료진 상담 필요',
+  };
+  const ttEl = document.createElement('div');
+  ttEl.id = 'appTooltip';
+  document.body.appendChild(ttEl);
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-tip]');
+    if (el) {
+      const txt = el.dataset.tip;
+      ttEl.textContent = txt;
+      ttEl.style.display = 'block';
+      const r = el.getBoundingClientRect();
+      let top = r.bottom + 8, left = r.left;
+      if (left + 238 > window.innerWidth) left = window.innerWidth - 246;
+      if (top + 90 > window.innerHeight) top = r.top - 94;
+      ttEl.style.top = top + 'px'; ttEl.style.left = left + 'px';
+      e.stopPropagation();
+    } else { ttEl.style.display = 'none'; }
+  });
+  function getTip(key, def) {
+    return METRIC_DESC[key] || (def?.category ? `${def.name||key} — ${def.category}` : null);
   }
 
   // 검진수치 탭 전체를 Sheets 데이터로 동적 구성
@@ -2129,8 +2183,13 @@
       const cat=rawCat.includes('>')?rawCat.split('>')[0].trim():rawCat.trim();
       const color=PALETTE[idx%PALETTE.length];
       const item=document.createElement('div');
-      item.className=`lab-overview-item${status==='warn'?' warn':''}`;
-      item.onclick=()=>{
+      const lovTip = getTip(key, def);
+      item.className=`lab-overview-item${status==='warn'?' warn':''}${lovTip?' has-tip':''}`;
+      if(lovTip) item.dataset.tip = lovTip;
+      item.onclick=(e)=>{
+        if(lovTip && !e._tipHandled) {
+          // short-tap → tooltip; handled by global listener
+        }
         const btn=[...document.querySelectorAll('#labCategoryFilters .filter-chip')]
           .find(b=>b.textContent===cat);
         if(btn){filterLabs(cat,btn);btn.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});}
@@ -2138,7 +2197,7 @@
       item.innerHTML=`
         <div class="lov-dot" style="background:${color}"></div>
         <div class="lov-body">
-          <div class="lov-name">${def.name||key}</div>
+          <div class="lov-name">${def.name||key}${lovTip?'<span class="tip-icon">ⓘ</span>':''}</div>
           <div class="lov-val${status==='warn'?' lov-warn':''}">${latest??'-'}<span class="lov-unit"> ${def.unit||''}</span></div>
         </div>
         <div class="lov-trend">${trend}</div>`;

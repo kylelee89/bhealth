@@ -818,39 +818,36 @@
     /* 항암치료 타임라인 */
     .cs-drug-block { margin-bottom:4px; }
     .cs-drug-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-    /* 지그재그 타임라인 */
     .cs-tl-wrap {
       overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;
       padding-bottom:4px;
     }
     .cs-tl-wrap::-webkit-scrollbar { display:none; }
-    .cs-tl-zz {
-      display:flex; align-items:center; position:relative;
-      min-width:max-content; padding: 20px 4px 20px;
+    .cs-tl-straight {
+      display:flex; align-items:flex-end; position:relative;
+      min-width:max-content; padding: 24px 4px 0;
     }
-    .cs-tl-zz-line {
-      position:absolute; top:50%; left:0; right:0;
+    .cs-tl-straight-line {
+      position:absolute; bottom:9px; left:0; right:0;
       height:2px; background:var(--primary); opacity:.2; border-radius:1px;
     }
-    .cs-tl-zz-evt {
+    .cs-tl-st-evt {
       display:flex; flex-direction:column; align-items:center;
-      width:40px; flex-shrink:0; position:relative; z-index:1;
+      width:38px; flex-shrink:0; position:relative; z-index:1;
     }
-    .cs-tl-zz-lbl {
+    .cs-tl-st-lbl {
       font-size:9px; font-weight:700; color:#64748B;
-      white-space:nowrap; line-height:1; margin-bottom:3px;
+      white-space:nowrap; line-height:1; margin-bottom:5px;
     }
-    .cs-tl-zz-lbl.top { margin-bottom:3px; margin-top:0; }
-    .cs-tl-zz-lbl.bot { margin-top:3px; margin-bottom:0; order:3; }
-    .cs-tl-zz-dot {
+    .cs-tl-st-dot {
       width:9px; height:9px; border-radius:50%;
       background:var(--primary); border:2px solid white;
-      box-shadow:0 0 0 1.5px var(--primary); order:2;
+      box-shadow:0 0 0 1.5px var(--primary);
     }
-    .cs-tl-zz-evt.bcg .cs-tl-zz-dot { background:#7C3AED; box-shadow:0 0 0 1.5px #7C3AED; }
-    .cs-tl-zz-evt.nk  .cs-tl-zz-dot { background:#059669; box-shadow:0 0 0 1.5px #059669; }
-    .cs-tl-zz-evt.bcg .cs-tl-zz-lbl { color:#7C3AED; }
-    .cs-tl-zz-evt.nk  .cs-tl-zz-lbl { color:#059669; }
+    .cs-tl-st-evt.bcg .cs-tl-st-dot { background:#7C3AED; box-shadow:0 0 0 1.5px #7C3AED; }
+    .cs-tl-st-evt.nk  .cs-tl-st-dot { background:#059669; box-shadow:0 0 0 1.5px #059669; }
+    .cs-tl-st-evt.bcg .cs-tl-st-lbl { color:#7C3AED; }
+    .cs-tl-st-evt.nk  .cs-tl-st-lbl { color:#059669; }
     /* 히어로 카드 완료 상태 */
     .hero-card.done { background: linear-gradient(135deg,#1E3A5F 0%,#374151 100%); }
     .hero-done-badge { display:inline-block; background:rgba(255,255,255,.15); border-radius:8px; padding:3px 10px; font-size:11px; font-weight:700; margin-top:6px; }
@@ -957,6 +954,7 @@
     .mm-latest.ok   .mm-val { color: var(--accent); }
     .mm-latest.warn .mm-val { color: var(--warn); }
     .mm-latest.bad  .mm-val { color: var(--danger); }
+    .mm-date { font-size:9px; color:var(--text-muted); margin-top:2px; }
 
     /* ════════════════════════════════
        DESKTOP BREAKPOINT (≥ 768px)
@@ -1895,13 +1893,12 @@
             ${g.next?`<div class="cs-next-box" style="margin-left:auto"><div class="cs-next-lbl">다음</div><div class="cs-next-val">${fmtMD(g.next.date)} (${['일','월','화','수','목','금','토'][g.next._d.getDay()]})</div></div>`:''}
           </div>
           <div class="cs-tl-wrap">
-            <div class="cs-tl-zz">
-              <div class="cs-tl-zz-line"></div>
-              ${g.all.map((e,i)=>`
-                <div class="cs-tl-zz-evt ${dotClass(name)}">
-                  ${i%2===0?`<div class="cs-tl-zz-lbl top">${fmtMD(e.date)}</div>`:'<div style="height:12px"></div>'}
-                  <div class="cs-tl-zz-dot"></div>
-                  ${i%2===1?`<div class="cs-tl-zz-lbl bot">${fmtMD(e.date)}</div>`:'<div style="height:12px"></div>'}
+            <div class="cs-tl-straight">
+              <div class="cs-tl-straight-line"></div>
+              ${g.all.map(e=>`
+                <div class="cs-tl-st-evt ${dotClass(name)}">
+                  <div class="cs-tl-st-lbl">${fmtMD(e.date)}</div>
+                  <div class="cs-tl-st-dot"></div>
                 </div>`).join('')}
             </div>
           </div>
@@ -1931,7 +1928,7 @@
     // ── 일정 탭 전체 ──
     const sList = document.querySelector('#tab-schedule .schedule-list');
     if (sList) {
-      sList.innerHTML = sorted.map(e=>{
+      sList.innerHTML = [...sorted].reverse().map(e=>{
         const isToday=daysUntil(e.date)===0, isPast=e._d<today;
         const sub=[e.place,e.time].filter(Boolean).join(' · ');
         return `<div class="schedule-card">
@@ -2016,8 +2013,12 @@
       const card=document.getElementById(mmIds[i])?.closest('.mini-marker-card');
       if(card){
         const ve=card.querySelector('.mm-val'), le=card.querySelector('.mm-latest');
+        const latestRow=rows[rows.length-1];
         if(ve) ve.textContent=latest;
         if(le){le.classList.remove('ok','warn','bad');le.classList.add(status);}
+        let de=card.querySelector('.mm-date');
+        if(!de){de=document.createElement('div');de.className='mm-date';le?.appendChild(de);}
+        if(de&&latestRow) de.textContent=fmtMD(latestRow._d.toISOString().slice(0,10));
       }
     });
 
@@ -2045,7 +2046,7 @@
       if(!catMap[cat]) catMap[cat]=[];
       catMap[cat].push(key);
     });
-    const cats=Object.keys(catMap).sort();
+    const cats=Object.keys(catMap).sort((a,b)=>a==='기타'?1:b==='기타'?-1:a.localeCompare(b,'ko'));
 
     // 필터 칩 동적 생성
     const filterEl=document.getElementById('labCategoryFilters');

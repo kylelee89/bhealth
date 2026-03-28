@@ -821,11 +821,7 @@
     /* 항암치료 타임라인 */
     .cs-drug-block { margin-bottom:4px; }
     .cs-drug-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-    .cs-tl-wrap {
-      overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;
-      padding-bottom:4px;
-    }
-    .cs-tl-wrap::-webkit-scrollbar { display:none; }
+    .cs-tl-wrap { width:100%; overflow:hidden; padding-bottom:4px; }
     .cs-tl-straight {
       display:flex; align-items:flex-end; position:relative;
       width:100%; padding: 24px 0 0;
@@ -1004,28 +1000,7 @@
     /* ════════════════════════════════
        DESKTOP BREAKPOINT (≥ 768px)
     ════════════════════════════════ */
-    @media (min-width: 768px) {
-      .content-area {
-        max-width: 600px;
-        margin: 0 auto;
-      }
-      .bottom-nav {
-        max-width: 600px;
-        left: 50%;
-        transform: translateX(-50%);
-        border-radius: 20px 20px 0 0;
-        border-left: 1px solid var(--border);
-        border-right: 1px solid var(--border);
-      }
-      .top-header {
-        max-width: 600px;
-        margin: 0 auto;
-        border-left: 1px solid var(--border);
-        border-right: 1px solid var(--border);
-      }
-      .hero-card { padding: 26px 24px; }
-      .hero-left .big { font-size: 56px; }
-    }
+    /* 768px 미디어 쿼리 제거 — 모바일/태블릿 전체 폭 사용 */
 
     @media (min-width: 1024px) {
       body { background: #E2E8F0; }
@@ -1247,42 +1222,42 @@
               <div><div class="mm-title">NMP22</div><div class="mm-sub">방광암 표지자</div></div>
               <div class="mm-latest ok"><div class="mm-val">4.8</div><div class="mm-unit">U/mL · &lt;10</div></div>
             </div>
-            <canvas id="mm1" height="68"></canvas>
+            <canvas id="mm1" height="68" style="height:68px!important"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">RBC</div><div class="mm-sub">적혈구</div></div>
               <div class="mm-latest warn"><div class="mm-val">3.7</div><div class="mm-unit">M/μL · 4.2↑</div></div>
             </div>
-            <canvas id="mm2" height="68"></canvas>
+            <canvas id="mm2" height="68" style="height:68px!important"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">WBC</div><div class="mm-sub">백혈구</div></div>
               <div class="mm-latest warn"><div class="mm-val">3.2k</div><div class="mm-unit">/μL · 4k↑</div></div>
             </div>
-            <canvas id="mm3" height="68"></canvas>
+            <canvas id="mm3" height="68" style="height:68px!important"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">NLR</div><div class="mm-sub">호중구/림프구비</div></div>
               <div class="mm-latest ok"><div class="mm-val">2.6</div><div class="mm-unit">비율 · &lt;3</div></div>
             </div>
-            <canvas id="mm4" height="68"></canvas>
+            <canvas id="mm4" height="68" style="height:68px!important"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">PSA</div><div class="mm-sub">전립선 특이항원</div></div>
               <div class="mm-latest ok"><div class="mm-val">0.5</div><div class="mm-unit">ng/mL · &lt;4</div></div>
             </div>
-            <canvas id="mm5" height="68"></canvas>
+            <canvas id="mm5" height="68" style="height:68px!important"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">eGFR</div><div class="mm-sub">사구체여과율</div></div>
               <div class="mm-latest warn"><div class="mm-val">60</div><div class="mm-unit">mL/min · 60↑</div></div>
             </div>
-            <canvas id="mm6" height="68"></canvas>
+            <canvas id="mm6" height="68" style="height:68px!important"></canvas>
           </div>
         </div>
 
@@ -1804,10 +1779,10 @@
     _mmCharts[id] = new Chart(el, {
       type:'line',
       data:{ labels: showX ? labels : d.map((_,i)=>i), datasets:[{ data:d, borderColor:c, backgroundColor:bg, fill, tension:.4, pointRadius:2.5, borderWidth:2 }] },
-      options:{ responsive:true, animation:false,
+      options:{ responsive:true, maintainAspectRatio:false, animation:false,
         plugins:{legend:{display:false},tooltip:{enabled:false}},
         scales:{
-          x:{ display:showX, ticks:{ font:{size:7}, color:'#94A3B8', maxRotation:30, autoSkip:true, maxTicksLimit:4 }, grid:{display:false}, border:{display:false} },
+          x:{ display:showX, ticks:{ font:{size:7}, color:'#94A3B8', maxRotation:0, autoSkip:true, maxTicksLimit:3 }, grid:{display:false}, border:{display:false} },
           y:{ display:false }
         },
         elements:{point:{radius:2.5},line:{borderWidth:2}} }
@@ -1938,9 +1913,10 @@
               <div class="cs-tl-straight-line"></div>
               ${(()=>{
                 const n=g.all.length;
-                const cardW=(document.querySelector('.chemo-status-card')?.clientWidth||340)-32;
-                const evtW=Math.max(20,Math.floor(cardW/n));
-                const fs=evtW>=34?9:evtW>=27?8:7;
+                const innerW=window.innerWidth||390;
+                const cardW=Math.min(innerW,600)-48; // 패딩 제외
+                const evtW=Math.max(18,Math.floor(cardW/n));
+                const fs=evtW>=32?9:evtW>=24?8:7;
                 return g.all.map(e=>`
                   <div class="cs-tl-st-evt ${dotClass(name)}" style="width:${evtW}px">
                     <div class="cs-tl-st-lbl" style="font-size:${fs}px">${fmtMD(e.date)}</div>
@@ -2160,7 +2136,20 @@
     if (!e.target.closest('[data-tip]')) ttEl.style.display = 'none';
   });
   function getTip(key, def) {
-    return METRIC_DESC[key] || (def?.category ? `${def.name||key} — ${def.category}` : null);
+    if (METRIC_DESC[key]) return METRIC_DESC[key];
+    if (!def) return null;
+    const name = def.name || key;
+    const parts = [];
+    if (def.category) {
+      const cat = def.category.includes('>') ? def.category.split('>').map(s=>s.trim()).join(' › ') : def.category;
+      parts.push(cat);
+    }
+    const mn = parseFloat(def.normal_min), mx = parseFloat(def.normal_max);
+    const u = def.unit ? ` ${def.unit}` : '';
+    if (!isNaN(mn) && !isNaN(mx)) parts.push(`정상 범위: ${mn}~${mx}${u}`);
+    else if (!isNaN(mn)) parts.push(`정상: ${mn}${u} 이상`);
+    else if (!isNaN(mx)) parts.push(`정상: ${mx}${u} 미만`);
+    return `${name} — ${parts.join(' · ')}`;
   }
 
   // 검진수치 탭 전체를 Sheets 데이터로 동적 구성

@@ -815,17 +815,42 @@
       text-align: right;
     }
     .cs-next-lbl { font-size: 9px; color: var(--text-muted); font-weight: 600; }
-    /* 날짜 칩 wrap 레이아웃 */
-    .cs-drug-block { margin-bottom: 4px; }
-    .cs-drug-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-    .cs-dates-wrap { display:flex; flex-wrap:wrap; gap:5px; }
-    .cs-date-chip {
-      font-size:10px; font-weight:600; color:var(--primary);
-      background:var(--primary-light); border-radius:6px;
-      padding:3px 7px; white-space:nowrap;
+    /* 항암치료 타임라인 */
+    .cs-drug-block { margin-bottom:4px; }
+    .cs-drug-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    /* 지그재그 타임라인 */
+    .cs-tl-wrap {
+      overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+      padding-bottom:4px;
     }
-    .cs-date-chip.bcg  { color:#7C3AED; background:#EDE9FE; }
-    .cs-date-chip.nk   { color:#059669; background:#D1FAE5; }
+    .cs-tl-wrap::-webkit-scrollbar { display:none; }
+    .cs-tl-zz {
+      display:flex; align-items:center; position:relative;
+      min-width:max-content; padding: 20px 4px 20px;
+    }
+    .cs-tl-zz-line {
+      position:absolute; top:50%; left:0; right:0;
+      height:2px; background:var(--primary); opacity:.2; border-radius:1px;
+    }
+    .cs-tl-zz-evt {
+      display:flex; flex-direction:column; align-items:center;
+      width:40px; flex-shrink:0; position:relative; z-index:1;
+    }
+    .cs-tl-zz-lbl {
+      font-size:9px; font-weight:700; color:#64748B;
+      white-space:nowrap; line-height:1; margin-bottom:3px;
+    }
+    .cs-tl-zz-lbl.top { margin-bottom:3px; margin-top:0; }
+    .cs-tl-zz-lbl.bot { margin-top:3px; margin-bottom:0; order:3; }
+    .cs-tl-zz-dot {
+      width:9px; height:9px; border-radius:50%;
+      background:var(--primary); border:2px solid white;
+      box-shadow:0 0 0 1.5px var(--primary); order:2;
+    }
+    .cs-tl-zz-evt.bcg .cs-tl-zz-dot { background:#7C3AED; box-shadow:0 0 0 1.5px #7C3AED; }
+    .cs-tl-zz-evt.nk  .cs-tl-zz-dot { background:#059669; box-shadow:0 0 0 1.5px #059669; }
+    .cs-tl-zz-evt.bcg .cs-tl-zz-lbl { color:#7C3AED; }
+    .cs-tl-zz-evt.nk  .cs-tl-zz-lbl { color:#059669; }
     /* 히어로 카드 완료 상태 */
     .hero-card.done { background: linear-gradient(135deg,#1E3A5F 0%,#374151 100%); }
     .hero-done-badge { display:inline-block; background:rgba(255,255,255,.15); border-radius:8px; padding:3px 10px; font-size:11px; font-weight:700; margin-top:6px; }
@@ -1044,33 +1069,8 @@
           </div>
         </div>
 
-        <!-- Summary chips -->
-        <div class="summary-scroll">
-          <div class="summary-chip">
-            <div class="chip-icon blue">💊</div>
-            <div>
-              <div class="chip-label">다음 항암</div>
-              <div class="chip-value" style="color:var(--primary)">D-5</div>
-              <div class="chip-sub">3월 31일 · 5차</div>
-            </div>
-          </div>
-          <div class="summary-chip">
-            <div class="chip-icon green">🏥</div>
-            <div>
-              <div class="chip-label">치료 진행</div>
-              <div class="chip-value" style="color:var(--accent)">4/6차</div>
-              <div class="chip-sub">GC 항암요법</div>
-            </div>
-          </div>
-          <div class="summary-chip">
-            <div class="chip-icon amber">📋</div>
-            <div>
-              <div class="chip-label">이번 달 일정</div>
-              <div class="chip-value" style="color:var(--warn)">3건</div>
-              <div class="chip-sub">항암·검진·외래</div>
-            </div>
-          </div>
-        </div>
+        <!-- Summary chips — dynamically filled by applySchedule -->
+        <div class="summary-scroll" id="summaryChips"></div>
 
         <!-- Upcoming events -->
         <div class="section-header">
@@ -1701,9 +1701,13 @@
       id: 'inoOverlay',
       afterDraw(chart) {
         const ctx = chart.ctx, xA = chart.scales.x, yA = chart.scales.y;
-        Object.keys(cTick).forEach(i => {
+        Object.entries(cTick).forEach(([i, name]) => {
           const x = xA.getPixelForValue(+i);
-          ctx.save(); ctx.strokeStyle='rgba(59,130,246,.15)'; ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
+          // 색상: BCG=보라, 키트루다=파랑, 복합=주황
+          const col = name.includes('BCG')&&name.includes('키트루다')?'rgba(245,158,11,.5)'
+            : name.includes('BCG')?'rgba(124,58,237,.35)'
+            : 'rgba(59,130,246,.35)';
+          ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
           ctx.beginPath(); ctx.moveTo(x,yA.top); ctx.lineTo(x,yA.bottom); ctx.stroke(); ctx.restore();
         });
         Object.entries(bMap).forEach(([i,det]) => {
@@ -1745,7 +1749,7 @@
             color: ctx=>cTick[ctx.index]?'#3B82F6':'#94A3B8',
             callback(val,idx){ return cTick[idx]?[cTick[idx],labels[idx]]:labels[idx]; }
           }},
-          y:{min:0,grid:{color:'#F1F5F9'},ticks:{font:{size:9},color:'#94A3B8'}}
+          y:{type:'logarithmic',grid:{color:'#F1F5F9'},ticks:{font:{size:9},color:'#94A3B8',callback(v){return v>=1000?v/1000+'k':v;}}}
         }
       }
     });
@@ -1881,7 +1885,7 @@
     });
     const csCard = document.querySelector('.chemo-status-card');
     if (csCard) {
-      const chipClass = n=>n==='BCG'?'bcg':n==='NK세포치료'?'nk':'';
+      const dotClass = n=>n==='BCG'?'bcg':n==='NK세포치료'?'nk':'';
       const entries=Object.entries(groups);
       csCard.innerHTML=entries.map(([name,g],idx)=>`
         <div class="cs-drug-block">
@@ -1890,11 +1894,38 @@
             <div class="cs-count-pill">${g.all.length}회</div>
             ${g.next?`<div class="cs-next-box" style="margin-left:auto"><div class="cs-next-lbl">다음</div><div class="cs-next-val">${fmtMD(g.next.date)} (${['일','월','화','수','목','금','토'][g.next._d.getDay()]})</div></div>`:''}
           </div>
-          <div class="cs-dates-wrap">
-            ${g.all.map(e=>`<span class="cs-date-chip ${chipClass(name)}">${fmtMD(e.date)}</span>`).join('')}
+          <div class="cs-tl-wrap">
+            <div class="cs-tl-zz">
+              <div class="cs-tl-zz-line"></div>
+              ${g.all.map((e,i)=>`
+                <div class="cs-tl-zz-evt ${dotClass(name)}">
+                  ${i%2===0?`<div class="cs-tl-zz-lbl top">${fmtMD(e.date)}</div>`:'<div style="height:12px"></div>'}
+                  <div class="cs-tl-zz-dot"></div>
+                  ${i%2===1?`<div class="cs-tl-zz-lbl bot">${fmtMD(e.date)}</div>`:'<div style="height:12px"></div>'}
+                </div>`).join('')}
+            </div>
           </div>
         </div>${idx<entries.length-1?'<div class="cs-divider"></div>':''}
       `).join('');
+    }
+
+    // ── Summary chips ──
+    const sc = document.getElementById('summaryChips');
+    if (sc) {
+      const lastChemo = chemoAll.filter(e=>e._d<today).slice(-1)[0];
+      const thisMonth = sorted.filter(e=>{const d=e._d;return d>=today&&d.getMonth()===today.getMonth()&&d.getFullYear()===today.getFullYear();});
+      const chips=[];
+      if(nextChemo){
+        const days=daysUntil(nextChemo.date);
+        chips.push(`<div class="summary-chip"><div class="chip-icon blue">💊</div><div><div class="chip-label">다음 항암</div><div class="chip-value" style="color:var(--primary)">D-${days}</div><div class="chip-sub">${fmtMD(nextChemo.date)} · ${nextChemo.drug||nextChemo.title}</div></div></div>`);
+      } else if(lastChemo){
+        chips.push(`<div class="summary-chip"><div class="chip-icon blue">💊</div><div><div class="chip-label">마지막 항암</div><div class="chip-value" style="color:var(--text-muted)">${fmtMD(lastChemo.date)}</div><div class="chip-sub">${lastChemo.drug||lastChemo.title}</div></div></div>`);
+      }
+      chips.push(`<div class="summary-chip"><div class="chip-icon green">🏥</div><div><div class="chip-label">총 항암 완료</div><div class="chip-value" style="color:var(--accent)">${pastCnt}회</div><div class="chip-sub">${[...new Set(chemoAll.map(e=>e.drug||e.title))].join(' · ')}</div></div></div>`);
+      if(thisMonth.length){
+        chips.push(`<div class="summary-chip"><div class="chip-icon amber">📋</div><div><div class="chip-label">이번 달 일정</div><div class="chip-value" style="color:var(--warn)">${thisMonth.length}건</div><div class="chip-sub">${[...new Set(thisMonth.map(e=>e.type))].join('·')}</div></div></div>`);
+      }
+      sc.innerHTML=chips.join('');
     }
 
     // ── 일정 탭 전체 ──

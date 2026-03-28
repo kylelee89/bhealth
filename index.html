@@ -828,7 +828,7 @@
     .cs-tl-wrap::-webkit-scrollbar { display:none; }
     .cs-tl-straight {
       display:flex; align-items:flex-end; position:relative;
-      min-width:max-content; padding: 24px 4px 0;
+      width:100%; padding: 24px 0 0;
     }
     .cs-tl-straight-line {
       position:absolute; bottom:9px; left:0; right:0;
@@ -1247,42 +1247,42 @@
               <div><div class="mm-title">NMP22</div><div class="mm-sub">방광암 표지자</div></div>
               <div class="mm-latest ok"><div class="mm-val">4.8</div><div class="mm-unit">U/mL · &lt;10</div></div>
             </div>
-            <canvas id="mm1" height="52"></canvas>
+            <canvas id="mm1" height="68"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">RBC</div><div class="mm-sub">적혈구</div></div>
               <div class="mm-latest warn"><div class="mm-val">3.7</div><div class="mm-unit">M/μL · 4.2↑</div></div>
             </div>
-            <canvas id="mm2" height="52"></canvas>
+            <canvas id="mm2" height="68"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">WBC</div><div class="mm-sub">백혈구</div></div>
               <div class="mm-latest warn"><div class="mm-val">3.2k</div><div class="mm-unit">/μL · 4k↑</div></div>
             </div>
-            <canvas id="mm3" height="52"></canvas>
+            <canvas id="mm3" height="68"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">NLR</div><div class="mm-sub">호중구/림프구비</div></div>
               <div class="mm-latest ok"><div class="mm-val">2.6</div><div class="mm-unit">비율 · &lt;3</div></div>
             </div>
-            <canvas id="mm4" height="52"></canvas>
+            <canvas id="mm4" height="68"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">PSA</div><div class="mm-sub">전립선 특이항원</div></div>
               <div class="mm-latest ok"><div class="mm-val">0.5</div><div class="mm-unit">ng/mL · &lt;4</div></div>
             </div>
-            <canvas id="mm5" height="52"></canvas>
+            <canvas id="mm5" height="68"></canvas>
           </div>
           <div class="mini-marker-card">
             <div class="mm-header">
               <div><div class="mm-title">eGFR</div><div class="mm-sub">사구체여과율</div></div>
               <div class="mm-latest warn"><div class="mm-val">60</div><div class="mm-unit">mL/min · 60↑</div></div>
             </div>
-            <canvas id="mm6" height="52"></canvas>
+            <canvas id="mm6" height="68"></canvas>
           </div>
         </div>
 
@@ -1797,16 +1797,20 @@
   }
 
   // ─── 미니 마커 차트 ───
-  function renderMiniChart(id, d, c, bg, fill) {
+  function renderMiniChart(id, d, c, bg, fill, labels=[]) {
     const el = document.getElementById(id); if (!el) return;
     if (_mmCharts[id]) { _mmCharts[id].destroy(); delete _mmCharts[id]; }
+    const showX = labels.length > 0;
     _mmCharts[id] = new Chart(el, {
       type:'line',
-      data:{ labels:d.map((_,i)=>i), datasets:[{ data:d, borderColor:c, backgroundColor:bg, fill, tension:.4, pointRadius:2, borderWidth:2 }] },
+      data:{ labels: showX ? labels : d.map((_,i)=>i), datasets:[{ data:d, borderColor:c, backgroundColor:bg, fill, tension:.4, pointRadius:2.5, borderWidth:2 }] },
       options:{ responsive:true, animation:false,
         plugins:{legend:{display:false},tooltip:{enabled:false}},
-        scales:{x:{display:false},y:{display:false}},
-        elements:{point:{radius:2},line:{borderWidth:2}} }
+        scales:{
+          x:{ display:showX, ticks:{ font:{size:7}, color:'#94A3B8', maxRotation:30, autoSkip:true, maxTicksLimit:4 }, grid:{display:false}, border:{display:false} },
+          y:{ display:false }
+        },
+        elements:{point:{radius:2.5},line:{borderWidth:2}} }
     });
   }
 
@@ -1929,14 +1933,20 @@
             <div class="cs-count-pill">${g.all.length}회</div>
             ${g.next?`<div class="cs-next-box" style="margin-left:auto"><div class="cs-next-lbl">다음</div><div class="cs-next-val">${fmtMD(g.next.date)} (${['일','월','화','수','목','금','토'][g.next._d.getDay()]})</div></div>`:''}
           </div>
-          <div class="cs-tl-wrap">
+          <div class="cs-tl-wrap" data-drug="${name}">
             <div class="cs-tl-straight">
               <div class="cs-tl-straight-line"></div>
-              ${g.all.map(e=>`
-                <div class="cs-tl-st-evt ${dotClass(name)}">
-                  <div class="cs-tl-st-lbl">${fmtMD(e.date)}</div>
-                  <div class="cs-tl-st-dot"></div>
-                </div>`).join('')}
+              ${(()=>{
+                const n=g.all.length;
+                const cardW=(document.querySelector('.chemo-status-card')?.clientWidth||340)-32;
+                const evtW=Math.max(20,Math.floor(cardW/n));
+                const fs=evtW>=34?9:evtW>=27?8:7;
+                return g.all.map(e=>`
+                  <div class="cs-tl-st-evt ${dotClass(name)}" style="width:${evtW}px">
+                    <div class="cs-tl-st-lbl" style="font-size:${fs}px">${fmtMD(e.date)}</div>
+                    <div class="cs-tl-st-dot"></div>
+                  </div>`).join('');
+              })()}
             </div>
           </div>
         </div>${idx<entries.length-1?'<div class="cs-divider"></div>':''}
@@ -2075,7 +2085,8 @@
       if(!isNaN(mn)&&!isNaN(mx)) status=(latest<mn||latest>mx)?'warn':'ok';
       else if(!isNaN(mn)) status=latest<mn?'warn':'ok';
       else if(!isNaN(mx)) status=latest>mx?'warn':'ok';
-      renderMiniChart(mmIds[i],d,PALETTE[i%PALETTE.length],'transparent',false);
+      const mmLabels=rows.map(r=>fmtMD(r._d.toISOString().slice(0,10)));
+      renderMiniChart(mmIds[i],d,PALETTE[i%PALETTE.length],'transparent',false,mmLabels);
       if(card){
         const ve=card.querySelector('.mm-val'), le=card.querySelector('.mm-latest');
         const latestRow=rows[rows.length-1];
@@ -2111,23 +2122,42 @@
     'CRP':         'C반응성 단백질 — 염증 지표. 감염·조직 손상 시 급격히 상승 (기준: 0.5 mg/dL 미만)',
     'Weight':      '체중 — 항암 중 5% 이상 감소 시 영양 상태 저하 신호로 의료진 상담 필요',
     '체중':        '체중 — 항암 중 5% 이상 감소 시 영양 상태 저하 신호로 의료진 상담 필요',
+    'BUN':         '혈중요소질소 — 신장이 단백질 노폐물을 처리하는 능력 지표. 높으면 신기능 저하 또는 탈수 의심 (기준: 7~20 mg/dL)',
+    '혈중요소질소': '혈중요소질소(BUN) — 신장이 단백질 노폐물을 처리하는 능력 지표. 높으면 신기능 저하 또는 탈수 의심 (기준: 7~20 mg/dL)',
+    'Uric Acid':   '요산 — 퓨린 대사 산물. 높으면 통풍 위험, 신장에도 부담 (기준: 2.4~7.0 mg/dL)',
+    '요산':        '요산 — 퓨린 대사 산물. 높으면 통풍 위험, 신장에도 부담 (기준: 2.4~7.0 mg/dL)',
+    'Na':          '나트륨 — 체액 균형 조절. 너무 낮거나 높으면 피로·어지럼증 발생',
+    'K':           '칼륨 — 심장 및 근육 기능 조절. 낮으면 근육 약화·부정맥 위험',
+    'ALT':         'ALT(GPT) — 간 기능 지표. 높으면 간세포 손상 의심. 항암 중 모니터링 필수',
+    'AST':         'AST(GOT) — 간·근육 손상 지표. ALT와 함께 간 기능 평가에 활용',
+    'ALP':         '알칼리 인산분해효소 — 간·뼈 대사 지표. 높으면 간 질환 또는 골 대사 이상 의심',
   };
   const ttEl = document.createElement('div');
   ttEl.id = 'appTooltip';
   document.body.appendChild(ttEl);
+  function showTip(el) {
+    const txt = el.dataset.tip;
+    ttEl.textContent = txt;
+    ttEl.style.display = 'block';
+    const r = el.getBoundingClientRect();
+    let top = r.bottom + 8, left = r.left;
+    if (left + 238 > window.innerWidth) left = window.innerWidth - 246;
+    if (top + 90 > window.innerHeight) top = r.top - 94;
+    ttEl.style.top = top + 'px'; ttEl.style.left = left + 'px';
+  }
+  // 클릭으로 표시
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-tip]');
-    if (el) {
-      const txt = el.dataset.tip;
-      ttEl.textContent = txt;
-      ttEl.style.display = 'block';
-      const r = el.getBoundingClientRect();
-      let top = r.bottom + 8, left = r.left;
-      if (left + 238 > window.innerWidth) left = window.innerWidth - 246;
-      if (top + 90 > window.innerHeight) top = r.top - 94;
-      ttEl.style.top = top + 'px'; ttEl.style.left = left + 'px';
-      e.stopPropagation();
-    } else { ttEl.style.display = 'none'; }
+    if (el) { showTip(el); e.stopPropagation(); }
+    else { ttEl.style.display = 'none'; }
+  });
+  // 마우스오버/아웃으로 표시·숨김 (데스크탑)
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest('[data-tip]');
+    if (el) showTip(el);
+  });
+  document.addEventListener('mouseout', e => {
+    if (!e.target.closest('[data-tip]')) ttEl.style.display = 'none';
   });
   function getTip(key, def) {
     return METRIC_DESC[key] || (def?.category ? `${def.name||key} — ${def.category}` : null);

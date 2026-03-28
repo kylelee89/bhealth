@@ -1815,8 +1815,8 @@
     // ── 다가오는 일정 (홈탭) ──
     const upcoming = sorted.filter(e=>e._d>=today).slice(0,5);
     const eList = document.querySelector('#tab-home .event-list');
-    if (eList && upcoming.length) {
-      eList.innerHTML = upcoming.map(e=>{
+    if (eList) {
+      eList.innerHTML = upcoming.length ? upcoming.map(e=>{
         const isToday = daysUntil(e.date)===0;
         const sub=[e.time,e.place,e.drug].filter(Boolean).join(' · ');
         return `<div class="event-item${isToday?' today':''}">
@@ -1826,14 +1826,15 @@
           </div>
           <div class="event-divider"${isToday?' style="background:var(--primary);opacity:.3"':''}></div>
           <div class="event-body">
-            <div class="event-title">${e.title}</div>
+            <div class="event-title">${e.title||e.drug||e.type}</div>
             <div class="event-sub">${sub}</div>
           </div>
           ${isToday
             ?'<span class="event-badge badge-today">오늘</span>'
             :`<span class="event-badge ${BADGE_CLASS[e.type]||'badge-consult'}">${e.type}</span>`}
         </div>`;
-      }).join('');
+      }).join('')
+      : '<div style="text-align:center;padding:24px 0;color:#94A3B8;font-size:14px;">다가오는 일정이 없습니다</div>';
     }
 
     // ── 항암 치료 현황 ──
@@ -1963,7 +1964,7 @@
     const filterEl=document.getElementById('labCategoryFilters');
     if(filterEl){
       filterEl.innerHTML=`<button class="filter-chip active" onclick="filterLabs('',this)">전체</button>`
-        +cats.map(c=>`<button class="filter-chip" onclick="filterLabs(${JSON.stringify(c)},this)">${c}</button>`).join('');
+        +cats.map(c=>`<button class="filter-chip" onclick='filterLabs(${JSON.stringify(c)},this)'>${c}</button>`).join('');
     }
 
     // 기존 차트 제거

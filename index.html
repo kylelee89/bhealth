@@ -389,6 +389,30 @@
       background: var(--primary);
     }
 
+    /* ── Lab dynamic overview ── */
+    .lab-overview-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 0 8px;
+    }
+    .lab-overview-item {
+      background: var(--card); border-radius: 12px; padding: 10px 12px;
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,.05); transition: transform .1s;
+    }
+    .lab-overview-item:active { transform: scale(.97); }
+    .lab-overview-item.warn { border-left: 3px solid #F59E0B; }
+    .lov-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .lov-body { flex: 1; min-width: 0; }
+    .lov-name { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lov-val { font-size: 15px; font-weight: 700; color: var(--text); }
+    .lov-val.lov-warn { color: #F59E0B; }
+    .lov-unit { font-size: 10px; font-weight: 400; color: var(--text-muted); }
+    .lov-trend { font-size: 13px; color: #CBD5E1; }
+    .lab-cat-header {
+      font-size: 12px; font-weight: 700; color: var(--text-muted);
+      padding: 12px 0 6px; text-transform: uppercase; letter-spacing: .06em;
+    }
+    .chart-latest .val.warn { color: #F59E0B; }
+
     /* ════════════════════════════════
        SCHEDULE PAGE — CARD LIST (mobile-friendly, no table)
     ════════════════════════════════ */
@@ -1368,111 +1392,14 @@
     <div id="tab-charts" class="panel">
       <div class="page">
         <div class="page-title">검진 수치</div>
-
-        <div class="filter-scroll">
-          <button class="filter-chip active">전체</button>
-          <button class="filter-chip">혈액 검사</button>
-          <button class="filter-chip">종양 표지자</button>
-          <button class="filter-chip">소변 검사</button>
-          <button class="filter-chip">신기능</button>
+        <div class="filter-scroll" id="labCategoryFilters">
+          <button class="filter-chip active" onclick="filterLabs('',this)">전체</button>
         </div>
-
-        <!-- WBC -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">백혈구 (WBC)</div>
-              <div class="chart-sub">정상 4,000–10,000 /μL</div>
-            </div>
-            <div class="chart-latest">
-              <div class="val">3,200</div>
-              <div class="unit">/μL</div>
-              <div class="change down">▼ 감소</div>
-            </div>
-          </div>
-          <canvas id="wbcChart" height="110"></canvas>
-          <div class="range-bar">
-            <span>0</span>
-            <div class="range-track">
-              <div class="range-normal" style="left:30%;width:50%"></div>
-              <div class="range-pointer" style="left:22%"></div>
-            </div>
-            <span>15k</span>
+        <div id="labsContainer">
+          <div style="text-align:center;padding:60px 0;color:#94A3B8;font-size:14px;">
+            데이터를 불러오는 중...
           </div>
         </div>
-
-        <!-- Hb -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">헤모글로빈 (Hb)</div>
-              <div class="chart-sub">정상 12–16 g/dL</div>
-            </div>
-            <div class="chart-latest">
-              <div class="val">10.8</div>
-              <div class="unit">g/dL</div>
-              <div class="change up">▲ 주의</div>
-            </div>
-          </div>
-          <canvas id="hbChart" height="110"></canvas>
-          <div class="range-bar">
-            <span>6</span>
-            <div class="range-track">
-              <div class="range-normal" style="left:40%;width:40%"></div>
-              <div class="range-pointer" style="left:32%"></div>
-            </div>
-            <span>18</span>
-          </div>
-        </div>
-
-        <!-- Tumor markers -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">종양 표지자 추이</div>
-              <div class="chart-sub">CEA · CA19-9 · NMP22</div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:3px;font-size:10px;font-weight:600;align-items:flex-end;">
-              <span style="color:#3B82F6">● CEA</span>
-              <span style="color:#10B981">● CA19-9</span>
-              <span style="color:#F59E0B">● NMP22</span>
-            </div>
-          </div>
-          <canvas id="tumorChart" height="120"></canvas>
-        </div>
-
-        <!-- PLT -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">혈소판 (PLT)</div>
-              <div class="chart-sub">정상 150,000–450,000 /μL</div>
-            </div>
-            <div class="chart-latest">
-              <div class="val">142k</div>
-              <div class="unit">/μL</div>
-              <div class="change stable">→ 경계</div>
-            </div>
-          </div>
-          <canvas id="pltChart" height="110"></canvas>
-        </div>
-
-        <!-- Creatinine -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">크레아티닌 (Cr)</div>
-              <div class="chart-sub">정상 0.6–1.2 mg/dL</div>
-            </div>
-            <div class="chart-latest">
-              <div class="val">1.1</div>
-              <div class="unit">mg/dL</div>
-              <div class="change stable">→ 정상</div>
-            </div>
-          </div>
-          <canvas id="crChart" height="110"></canvas>
-        </div>
-
       </div>
     </div>
 
@@ -1852,32 +1779,6 @@
     ];
     mmDefs.forEach(({id,d,c,bg,fill})=>renderMiniChart(id,d,c,bg,fill));
 
-    // 검진수치 탭 정적 차트
-    const L12 = ['10/15','11/1','11/15','12/1','12/15','1/1','1/15','2/3','2/17','3/3','3/17','3/26'];
-    renderLabChart('wbcChart',L12,[7200,6800,6500,6100,5800,6200,5900,4800,3900,5100,4200,3200],'#3B82F6','rgba(59,130,246,.08)','line',{scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y,min:0}}});
-    renderLabChart('hbChart', L12,[13.5,13.1,12.8,12.5,12.1,12.5,11.8,11.2,11.6,11.0,11.2,10.8],'#EF4444','rgba(239,68,68,.08)');
-    renderLabChart('crChart', L12,[0.9,0.95,1.0,1.05,1.02,0.98,1.05,1.08,1.05,1.1,1.08,1.1],'#10B981','rgba(16,185,129,.08)');
-
-    const tEl = document.getElementById('tumorChart');
-    if (tEl) {
-      if (_labCharts.tumorChart) _labCharts.tumorChart.destroy();
-      _labCharts.tumorChart = new Chart(tEl, {
-        type:'line', data:{labels:L12, datasets:[
-          {label:'CEA',   data:[5.2,4.8,4.5,4.1,3.8,3.5,3.2,2.9,2.7,2.5,2.3,2.1],borderColor:'#3B82F6',tension:.4,fill:false},
-          {label:'CA19-9',data:[38,35,32,29,27,25,23,21,20,18,17,16],              borderColor:'#10B981',tension:.4,fill:false},
-          {label:'NMP22', data:[12,10,9,8.5,7.8,7.2,6.8,6.2,5.9,5.5,5.2,4.9],    borderColor:'#F59E0B',tension:.4,fill:false}
-        ]}, options:chartDefaults
-      });
-    }
-    const pEl = document.getElementById('pltChart');
-    if (pEl) {
-      if (_labCharts.pltChart) _labCharts.pltChart.destroy();
-      const L8 = L12.slice(-8);
-      _labCharts.pltChart = new Chart(pEl, {
-        type:'bar', data:{labels:L8, datasets:[{data:[220,198,165,180,155,168,148,142],backgroundColor:L8.map((_,i)=>i<6?'rgba(59,130,246,.45)':'rgba(245,158,11,.7)'),borderRadius:5}]},
-        options:chartDefaults
-      });
-    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1987,33 +1888,30 @@
     }
   }
 
-  // 시트2(labs) + 시트3(labDefs): key/value 기반
+  // 시트2(labs) + 시트3(labDefs)
   function applyLabs(labs, labDefs) {
     const defMap={};
     labDefs.forEach(d=>{defMap[d.key]=d;});
 
-    // ── 이노크라스 차트 ──
-    const inoRows = labs
-      .filter(r=>String(r.key).startsWith('Inocras_'))
-      .map(r=>({...r,_d:parseDate(r.date)}))
-      .sort((a,b)=>a._d-b._d);
-
-    if (inoRows.length) {
+    // ── 이노크라스 차트 (홈 탭) ──
+    const inoRows=labs.filter(r=>String(r.key).startsWith('Inocras_'))
+      .map(r=>({...r,_d:parseDate(r.date)})).sort((a,b)=>a._d-b._d);
+    if(inoRows.length){
       const allDates=[...new Set(inoRows.map(r=>r.date))].sort();
       const labels=allDates.map(fmtMD);
-      const uMap={}, bMap={};
+      const uMap={},bMap={};
       inoRows.forEach(r=>{
         const idx=allDates.indexOf(r.date);
         if(r.key==='Inocras_소변') uMap[idx]=parseFloat(r.value)||null;
-        if(r.key==='Inocras_혈액') bMap[idx]=(+r.value===1); // 0=ND,1=D
+        if(r.key==='Inocras_혈액') bMap[idx]=(+r.value===1);
       });
       const uData=allDates.map((_,i)=>uMap[i]!==undefined?uMap[i]:null);
       renderInocrasChart(labels,uData,bMap,{});
     }
 
-    // ── 미니 마커 카드 ──
+    // ── 미니 마커 카드 (홈 탭) ──
     const mmKeys=['NMP22','RBC','WBC','NLR','PSA','eGFR'];
-    const mmIds =['mm1','mm2','mm3','mm4','mm5','mm6'];
+    const mmIds=['mm1','mm2','mm3','mm4','mm5','mm6'];
     mmKeys.forEach((key,i)=>{
       const def=defMap[key]; if(!def) return;
       const rows=labs.filter(r=>r.key===key)
@@ -2022,13 +1920,11 @@
       if(!rows.length) return;
       const d=rows.map(r=>r.val), latest=d[d.length-1];
       const mn=parseFloat(def.normal_min), mx=parseFloat(def.normal_max);
-      const hib=String(def.higher_is_better).toUpperCase()==='TRUE';
       let status='ok';
       if(!isNaN(mn)&&!isNaN(mx)) status=(latest<mn||latest>mx)?'warn':'ok';
-      else if(!isNaN(mn)) status=(!hib&&latest<mn||hib&&latest<mn)?'warn':'ok';
-      else if(!isNaN(mx)) status=(latest>mx)?'warn':'ok';
-      const c=PALETTE[i%PALETTE.length];
-      renderMiniChart(mmIds[i],d,c,'transparent',false);
+      else if(!isNaN(mn)) status=latest<mn?'warn':'ok';
+      else if(!isNaN(mx)) status=latest>mx?'warn':'ok';
+      renderMiniChart(mmIds[i],d,PALETTE[i%PALETTE.length],'transparent',false);
       const card=document.getElementById(mmIds[i])?.closest('.mini-marker-card');
       if(card){
         const ve=card.querySelector('.mm-val'), le=card.querySelector('.mm-latest');
@@ -2037,51 +1933,150 @@
       }
     });
 
-    // ── 검진수치 탭 차트 업데이트 ──
-    const chartKeys={wbcChart:'WBC',hbChart:'Hb',crChart:'Cr'};
-    Object.entries(chartKeys).forEach(([cid,key])=>{
-      const rows=labs.filter(r=>r.key===key)
-        .map(r=>({_d:parseDate(r.date),val:parseFloat(r.value),lbl:fmtMD(r.date)}))
-        .sort((a,b)=>a._d-b._d);
-      if(!rows.length) return;
-      const inst=_labCharts[cid];
-      if(!inst) return;
-      inst.data.labels=rows.map(r=>r.lbl);
-      inst.data.datasets[0].data=rows.map(r=>r.val);
-      inst.update();
-      const latest=rows[rows.length-1];
-      const card=document.getElementById(cid)?.closest('.chart-card');
-      if(card&&latest) {
-        const ve=card.querySelector('.chart-latest .val');
-        if(ve) ve.textContent=latest.val;
-        const def=defMap[key];
-        if(def){const se=card.querySelector('.chart-sub');if(se)se.textContent=`정상 ${def.normal_min||''}–${def.normal_max||''} ${def.unit||''}`;}
-      }
+    // ── 검진수치 탭 동적 렌더링 ──
+    renderLabsTab(labs, defMap);
+  }
+
+  // 검진수치 탭 전체를 Sheets 데이터로 동적 구성
+  function renderLabsTab(labs, defMap) {
+    // key별 데이터 묶기
+    const keyMap={};
+    labs.forEach(r=>{
+      if(!r.key||r.value===''||r.value===null||r.value===undefined) return;
+      const val=parseFloat(r.value); if(isNaN(val)) return;
+      if(!keyMap[r.key]) keyMap[r.key]=[];
+      keyMap[r.key].push({_d:parseDate(r.date),val,lbl:fmtMD(r.date)});
+    });
+    Object.values(keyMap).forEach(arr=>arr.sort((a,b)=>a._d-b._d));
+
+    // 카테고리별 키 그룹핑
+    const catMap={};
+    Object.keys(keyMap).forEach(key=>{
+      const rawCat=(defMap[key]?.category)||'기타';
+      const cat=rawCat.includes('>')?rawCat.split('>')[0].trim():rawCat.trim();
+      if(!catMap[cat]) catMap[cat]=[];
+      catMap[cat].push(key);
+    });
+    const cats=Object.keys(catMap).sort();
+
+    // 필터 칩 동적 생성
+    const filterEl=document.getElementById('labCategoryFilters');
+    if(filterEl){
+      filterEl.innerHTML=`<button class="filter-chip active" onclick="filterLabs('',this)">전체</button>`
+        +cats.map(c=>`<button class="filter-chip" onclick="filterLabs(${JSON.stringify(c)},this)">${c}</button>`).join('');
+    }
+
+    // 기존 차트 제거
+    Object.keys(_labCharts).forEach(id=>{_labCharts[id]?.destroy();delete _labCharts[id];});
+
+    const container=document.getElementById('labsContainer');
+    if(!container) return;
+    container.innerHTML='';
+
+    // ── 전체 뷰: 2열 그리드 오버뷰 ──
+    const overviewSection=document.createElement('div');
+    overviewSection.className='lab-section'; overviewSection.dataset.cat='';
+    const grid=document.createElement('div'); grid.className='lab-overview-grid';
+
+    const allKeys=Object.keys(keyMap);
+    allKeys.forEach((key,idx)=>{
+      const rows=keyMap[key];
+      const def=defMap[key]||{};
+      const latest=rows[rows.length-1]?.val;
+      const prev=rows[rows.length-2]?.val;
+      const mn=parseFloat(def.normal_min), mx=parseFloat(def.normal_max);
+      let status='ok';
+      if(!isNaN(mn)&&!isNaN(mx)) status=(latest<mn||latest>mx)?'warn':'ok';
+      else if(!isNaN(mn)) status=latest<mn?'warn':'ok';
+      else if(!isNaN(mx)) status=latest>mx?'warn':'ok';
+      const trend=prev===undefined?'':latest>prev?'↑':latest<prev?'↓':'→';
+      const rawCat=(def.category)||'기타';
+      const cat=rawCat.includes('>')?rawCat.split('>')[0].trim():rawCat.trim();
+      const color=PALETTE[idx%PALETTE.length];
+      const item=document.createElement('div');
+      item.className=`lab-overview-item${status==='warn'?' warn':''}`;
+      item.onclick=()=>{
+        const btn=[...document.querySelectorAll('#labCategoryFilters .filter-chip')]
+          .find(b=>b.textContent===cat);
+        if(btn){filterLabs(cat,btn);btn.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});}
+      };
+      item.innerHTML=`
+        <div class="lov-dot" style="background:${color}"></div>
+        <div class="lov-body">
+          <div class="lov-name">${def.name||key}</div>
+          <div class="lov-val${status==='warn'?' lov-warn':''}">${latest??'-'}<span class="lov-unit"> ${def.unit||''}</span></div>
+        </div>
+        <div class="lov-trend">${trend}</div>`;
+      grid.appendChild(item);
+    });
+    overviewSection.appendChild(grid);
+    container.appendChild(overviewSection);
+
+    // ── 카테고리별 차트 섹션 ──
+    cats.forEach(cat=>{
+      const section=document.createElement('div');
+      section.className='lab-section'; section.dataset.cat=cat; section.style.display='none';
+      const hdr=document.createElement('div'); hdr.className='lab-cat-header'; hdr.textContent=cat;
+      section.appendChild(hdr);
+
+      catMap[cat].forEach(key=>{
+        const rows=keyMap[key].slice(-12);
+        const def=defMap[key]||{};
+        const latest=rows[rows.length-1]?.val;
+        const prev=rows[rows.length-2]?.val;
+        const mn=parseFloat(def.normal_min), mx=parseFloat(def.normal_max);
+        let status='ok';
+        if(!isNaN(mn)&&!isNaN(mx)) status=(latest<mn||latest>mx)?'warn':'ok';
+        let changeText='', changeClass='stable';
+        if(prev!==undefined&&Math.abs(latest-prev)>0.0001){
+          const diff=latest-prev;
+          const pct=Math.abs(diff/prev*100).toFixed(1);
+          changeText=diff>0?`▲ ${pct}%`:`▼ ${pct}%`;
+          const hib=String(def.higher_is_better||'').toUpperCase()==='TRUE';
+          changeClass=((hib&&diff>0)||(!hib&&diff<0))?'stable':'down';
+        }
+        const color=PALETTE[allKeys.indexOf(key)%PALETTE.length];
+        const cardId=`lc_${key.replace(/[^a-zA-Z0-9]/g,'_')}`;
+        const normalText=(!isNaN(mn)||!isNaN(mx))?`정상 ${isNaN(mn)?'':mn}–${isNaN(mx)?'':mx} ${def.unit||''}`:(def.unit||'');
+        const card=document.createElement('div'); card.className='chart-card';
+        card.innerHTML=`
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">${def.name||key}</div>
+              <div class="chart-sub">${normalText}</div>
+            </div>
+            <div class="chart-latest">
+              <div class="val${status==='warn'?' warn':''}">${latest??'-'}</div>
+              <div class="unit">${def.unit||''}</div>
+              ${changeText?`<div class="change ${changeClass}">${changeText}</div>`:''}
+            </div>
+          </div>
+          <canvas id="${cardId}" height="100"></canvas>`;
+        section.appendChild(card);
+        requestAnimationFrame(()=>{
+          renderLabChart(cardId,rows.map(r=>r.lbl),rows.map(r=>r.val),color,`${color}15`,'line',{
+            scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y}}
+          });
+        });
+      });
+      container.appendChild(section);
     });
 
-    // 종양표지자 (CEA, CA19-9, NMP22)
-    const tInst=_labCharts.tumorChart;
-    if(tInst){
-      ['CEA','CA19-9','NMP22'].forEach((key,i)=>{
-        const rows=labs.filter(r=>r.key===key).map(r=>({_d:parseDate(r.date),val:parseFloat(r.value),lbl:fmtMD(r.date)})).sort((a,b)=>a._d-b._d);
-        if(!rows.length||!tInst.data.datasets[i]) return;
-        tInst.data.labels=rows.map(r=>r.lbl);
-        tInst.data.datasets[i].data=rows.map(r=>r.val);
-      });
-      tInst.update();
-    }
+    // 현재 필터 유지
+    filterLabs(window._currentLabCat||'');
+  }
 
-    // PLT
-    const pInst=_labCharts.pltChart;
-    if(pInst){
-      const rows=labs.filter(r=>r.key==='PLT').map(r=>({_d:parseDate(r.date),val:parseFloat(r.value),lbl:fmtMD(r.date)})).sort((a,b)=>a._d-b._d).slice(-8);
-      if(rows.length){
-        pInst.data.labels=rows.map(r=>r.lbl);
-        pInst.data.datasets[0].data=rows.map(r=>r.val);
-        pInst.data.datasets[0].backgroundColor=rows.map((_,i)=>i<rows.length-2?'rgba(59,130,246,.45)':'rgba(245,158,11,.7)');
-        pInst.update();
-      }
+  function filterLabs(cat, btn) {
+    window._currentLabCat=cat;
+    document.querySelectorAll('#labCategoryFilters .filter-chip').forEach(b=>b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    else {
+      const first=document.querySelector('#labCategoryFilters .filter-chip');
+      if(first) first.classList.add('active');
     }
+    document.querySelectorAll('.lab-section').forEach(s=>{
+      s.style.display=(!cat?s.dataset.cat==='':s.dataset.cat===cat)?'':'none';
+    });
   }
 
   // 시트4(profile): key/value

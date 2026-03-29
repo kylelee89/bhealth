@@ -1,4 +1,4 @@
-const CACHE = 'health-app-v1';
+const CACHE = 'health-app-v3';
 const PRECACHE = ['/', '/index.html', '/manifest.json'];
 
 // 설치: 핵심 파일 캐시
@@ -42,14 +42,14 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 나머지 → 캐시 우선, 없으면 네트워크
+  // HTML/앱 파일 → 네트워크 우선, 실패 시 캐시 (항상 최신 버전 제공)
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).then(res => {
+    fetch(e.request).then(res => {
       if (res.ok) {
         const clone = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
       }
       return res;
-    }))
+    }).catch(() => caches.match(e.request))
   );
 });

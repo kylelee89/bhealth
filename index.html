@@ -970,27 +970,40 @@
        BLADDER MARKERS GRID
     ════════════════════════════════ */
     .markers-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 10px;
       margin-bottom: 20px;
     }
     .mini-marker-card {
       background: var(--card);
       border-radius: 14px;
-      padding: 12px 12px 8px;
+      padding: 12px 14px 10px;
       box-shadow: var(--shadow);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .mm-left {
+      flex: 0 0 auto;
+      min-width: 80px;
+    }
+    .mm-right {
+      flex: 1;
+      min-width: 0;
+      height: 68px;
     }
     .mm-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
     }
-    .mm-title { font-size: 12px; font-weight: 800; }
+    .mm-title { font-size: 13px; font-weight: 800; }
     .mm-sub   { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
-    .mm-latest { text-align: right; }
-    .mm-val   { font-size: 17px; font-weight: 900; line-height: 1; }
+    .mm-purpose { font-size: 9px; color: #6366F1; font-weight: 600; margin-top: 3px; }
+    .mm-latest { text-align: left; margin-top: 6px; }
+    .mm-val   { font-size: 22px; font-weight: 900; line-height: 1; }
     .mm-unit  { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
     .mm-latest.ok   .mm-val { color: var(--accent); }
     .mm-latest.warn .mm-val { color: var(--warn); }
@@ -1125,46 +1138,34 @@
         </div>
         <div class="markers-grid">
           <div class="mini-marker-card">
-            <div class="mm-header">
-              <div><div class="mm-title">NMP22</div><div class="mm-sub">방광암 표지자</div></div>
+            <div class="mm-left">
+              <div class="mm-title">NMP22</div>
+              <div class="mm-sub">소변 방광암 표지자</div>
+              <div class="mm-purpose">재발 감시</div>
               <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
+              <div class="mm-date"></div>
             </div>
-            <div class="mm-chart-wrap"><canvas id="mm1"></canvas></div>
+            <div class="mm-right"><div class="mm-chart-wrap"><canvas id="mm1"></canvas></div></div>
           </div>
           <div class="mini-marker-card">
-            <div class="mm-header">
-              <div><div class="mm-title">RBC</div><div class="mm-sub">적혈구</div></div>
+            <div class="mm-left">
+              <div class="mm-title">PSA</div>
+              <div class="mm-sub">전립선 특이항원</div>
+              <div class="mm-purpose">전이 여부</div>
               <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
+              <div class="mm-date"></div>
             </div>
-            <div class="mm-chart-wrap"><canvas id="mm2"></canvas></div>
+            <div class="mm-right"><div class="mm-chart-wrap"><canvas id="mm2"></canvas></div></div>
           </div>
           <div class="mini-marker-card">
-            <div class="mm-header">
-              <div><div class="mm-title">WBC</div><div class="mm-sub">백혈구</div></div>
+            <div class="mm-left">
+              <div class="mm-title">WBC</div>
+              <div class="mm-sub">백혈구</div>
+              <div class="mm-purpose">항암 독성</div>
               <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
+              <div class="mm-date"></div>
             </div>
-            <div class="mm-chart-wrap"><canvas id="mm3"></canvas></div>
-          </div>
-          <div class="mini-marker-card">
-            <div class="mm-header">
-              <div><div class="mm-title">NLR</div><div class="mm-sub">호중구/림프구비</div></div>
-              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
-            </div>
-            <div class="mm-chart-wrap"><canvas id="mm4"></canvas></div>
-          </div>
-          <div class="mini-marker-card">
-            <div class="mm-header">
-              <div><div class="mm-title">PSA</div><div class="mm-sub">전립선 특이항원</div></div>
-              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
-            </div>
-            <div class="mm-chart-wrap"><canvas id="mm5"></canvas></div>
-          </div>
-          <div class="mini-marker-card">
-            <div class="mm-header">
-              <div><div class="mm-title">eGFR</div><div class="mm-sub">신장기능(사구체여과율)</div></div>
-              <div class="mm-latest"><div class="mm-val">--</div><div class="mm-unit"></div></div>
-            </div>
-            <div class="mm-chart-wrap"><canvas id="mm6"></canvas></div>
+            <div class="mm-right"><div class="mm-chart-wrap"><canvas id="mm3"></canvas></div></div>
           </div>
         </div>
 
@@ -1969,15 +1970,15 @@
       .map(d=>({key:'NLR',date:d,value:String((ancByDate[d]/alcByDate[d]).toFixed(2))}));
     const labsWithNLR = [...labs, ...nlrRows];
 
-    const mmKeys=['NMP22','RBC','WBC','NLR','Total PSA','Estimated GFR'];
-    const mmIds=['mm1','mm2','mm3','mm4','mm5','mm6'];
+    const mmKeys=['NMP22','Total PSA','WBC'];
+    const mmIds=['mm1','mm2','mm3'];
+    const mmColors=['#3B82F6','#8B5CF6','#F97316'];
     mmKeys.forEach((key,i)=>{
       const def=defMap[key]||{};
-      const labSrc = labsWithNLR;
       const card=document.getElementById(mmIds[i])?.closest('.mini-marker-card');
       const tip=getTip(key,def);
       if(card&&tip){ card.classList.add('has-tip'); card.dataset.tip=tip; }
-      const rows=labSrc.filter(r=>r.key===key)
+      const rows=labs.filter(r=>r.key===key)
         .map(r=>({_d:parseDate(r.date),val:parseVal(r.value)}))
         .filter(r=>!isNaN(r.val))
         .sort((a,b)=>a._d-b._d).slice(-8);
@@ -1989,17 +1990,14 @@
       else if(!isNaN(mn)) status=latest<mn?'warn':'ok';
       else if(!isNaN(mx)) status=latest>mx?'warn':'ok';
       const mmLabels=rows.map(r=>fmtMD(r._d.toISOString().slice(0,10)));
-      renderMiniChart(mmIds[i],d,PALETTE[i%PALETTE.length],'transparent',false,mmLabels);
+      renderMiniChart(mmIds[i],d,mmColors[i],'transparent',false,mmLabels);
       if(card){
         const ve=card.querySelector('.mm-val'), ue=card.querySelector('.mm-unit'), le=card.querySelector('.mm-latest');
+        const de=card.querySelector('.mm-date');
         const latestRow=rows[rows.length-1];
         if(ve) ve.textContent=latest;
         if(ue&&def.unit) ue.textContent=def.unit+(def.normal_max?` · ${def.normal_max}↑`:'');
         if(le){le.classList.remove('ok','warn','bad');le.classList.add(status);}
-        // 날짜를 mm-sub 아래(왼쪽 컬럼)에 표시
-        const leftCol=card.querySelector('.mm-header > div:first-child');
-        let de=card.querySelector('.mm-date');
-        if(!de){de=document.createElement('div');de.className='mm-date';leftCol?.appendChild(de);}
         if(de&&latestRow) de.textContent=fmtMD(latestRow._d.toISOString().slice(0,10));
       }
     });

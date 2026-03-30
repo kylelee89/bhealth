@@ -1,4 +1,4 @@
-const CACHE = 'health-app-v3';
+const CACHE = 'health-app-v5';
 const PRECACHE = ['/', '/index.html', '/manifest.json'];
 
 // 설치: 핵심 파일 캐시

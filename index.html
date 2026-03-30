@@ -2161,13 +2161,7 @@
     if (top + 90 > window.innerHeight) top = r.top - 94;
     ttEl.style.top = top + 'px'; ttEl.style.left = left + 'px';
   }
-  // 클릭으로 표시
-  document.addEventListener('click', e => {
-    const el = e.target.closest('[data-tip]');
-    if (el) { showTip(el); e.stopPropagation(); }
-    else { ttEl.style.display = 'none'; }
-  });
-  // 마우스오버/아웃으로 표시·숨김 (데스크탑)
+  // 데스크탑: 마우스오버 → 표시, 마우스아웃 → 숨김
   document.addEventListener('mouseover', e => {
     const el = e.target.closest('[data-tip]');
     if (el) showTip(el);
@@ -2175,6 +2169,16 @@
   document.addEventListener('mouseout', e => {
     if (!e.target.closest('[data-tip]')) ttEl.style.display = 'none';
   });
+  // 모바일: 터치 시작 → 표시, 손 떼면 즉시 숨김
+  document.addEventListener('touchstart', e => {
+    const el = e.target.closest('[data-tip]');
+    if (el) showTip(el);
+    else ttEl.style.display = 'none';
+  }, { passive: true });
+  document.addEventListener('touchend', () => { ttEl.style.display = 'none'; }, { passive: true });
+  document.addEventListener('touchcancel', () => { ttEl.style.display = 'none'; }, { passive: true });
+  // 스크롤 시 숨김
+  document.addEventListener('scroll', () => { ttEl.style.display = 'none'; }, { passive: true, capture: true });
   function getTip(key, def) {
     if (METRIC_DESC[key]) return METRIC_DESC[key];
     if (!def || !def.name) return null;

@@ -1586,6 +1586,28 @@
     if (s instanceof Date) return s;
     return new Date(String(s).replace(/-/g, '/'));
   }
+  // 다양한 형식의 수치 문자열 → 숫자 변환
+  // "1 미만" / "<1" / "< 1" → 0
+  // "1~4" / "1-4" / "1–4" → 중간값 2.5
+  // "500+++" / "500+" / ">500" → 500
+  function parseVal(s) {
+    if (s === null || s === undefined || s === '') return NaN;
+    const str = String(s).trim();
+    // 미만/이하/<  → 0
+    if (/미만|이하/.test(str) || /^[<＜]\s*[\d.]/.test(str)) {
+      const m = str.match(/[\d.]+/);
+      return m ? 0 : NaN;
+    }
+    // 범위: 숫자~숫자 또는 숫자-숫자 → 중간값
+    const rangeM = str.match(/^([\d.]+)\s*[~\-–]\s*([\d.]+)$/);
+    if (rangeM) return (parseFloat(rangeM[1]) + parseFloat(rangeM[2])) / 2;
+    // 초과/이상/+++ / > → 숫자 그대로
+    if (/이상|초과|[+＋]{2,}/.test(str) || /^[>＞]\s*[\d.]/.test(str)) {
+      const m = str.match(/[\d.]+/);
+      return m ? parseFloat(m[0]) : NaN;
+    }
+    return parseFloat(str);
+  }
   function fmtMD(s) {
     const d = parseDate(s); if (!d) return '';
     return `${d.getMonth()+1}/${d.getDate()}`;
@@ -1881,7 +1903,7 @@
       inoRows.forEach(r=>{
         const idx=all.findIndex(d=>d.isIno&&d.date===r.date);
         if(idx<0) return;
-        if(r.key==='Inocras_소변') uMap[idx]=parseFloat(r.value)||null;
+        if(r.key==='Inocras_소변') uMap[idx]=parseVal(r.value)||null;
         if(r.key==='Inocras_혈액') bMap[idx]=(+r.value===1);
       });
       const uData=all.map((_,i)=>uMap[i]!==undefined?uMap[i]:null);
@@ -1918,7 +1940,7 @@
       const seen=new Set(); const cards=[];
       PRIORITY_KEYS.forEach((key,idx)=>{
         if(seen.has(key)||cards.length>=2) return;
-        const rows=labs.filter(r=>r.key===key).map(r=>({_d:parseDate(r.date),val:parseFloat(r.value)})).filter(r=>!isNaN(r.val)).sort((a,b)=>a._d-b._d);
+        const rows=labs.filter(r=>r.key===key).map(r=>({_d:parseDate(r.date),val:parseVal(r.value)})).filter(r=>!isNaN(r.val)).sort((a,b)=>a._d-b._d);
         if(!rows.length) return;
         const def=defMap[key]||{};
         const latest=rows[rows.length-1].val, prev=rows[rows.length-2]?.val;
@@ -1940,8 +1962,8 @@
     // ── 미니 마커 카드 (홈 탭) ──
     // NLR = ANC/ALC (계산값) — Sheets에 직접 저장 안 됨
     const ancByDate={}, alcByDate={};
-    labs.filter(r=>r.key==='ANC').forEach(r=>{ancByDate[r.date]=parseFloat(r.value);});
-    labs.filter(r=>r.key==='ALC').forEach(r=>{alcByDate[r.date]=parseFloat(r.value);});
+    labs.filter(r=>r.key==='ANC').forEach(r=>{ancByDate[r.date]=parseVal(r.value);});
+    labs.filter(r=>r.key==='ALC').forEach(r=>{alcByDate[r.date]=parseVal(r.value);});
     const nlrRows = Object.keys(ancByDate)
       .filter(d=>alcByDate[d]&&alcByDate[d]>0)
       .map(d=>({key:'NLR',date:d,value:String((ancByDate[d]/alcByDate[d]).toFixed(2))}));
@@ -1956,7 +1978,7 @@
       const tip=getTip(key,def);
       if(card&&tip){ card.classList.add('has-tip'); card.dataset.tip=tip; }
       const rows=labSrc.filter(r=>r.key===key)
-        .map(r=>({_d:parseDate(r.date),val:parseFloat(r.value)}))
+        .map(r=>({_d:parseDate(r.date),val:parseVal(r.value)}))
         .filter(r=>!isNaN(r.val))
         .sort((a,b)=>a._d-b._d).slice(-8);
       if(!rows.length) return;
@@ -2200,7 +2222,7 @@
     const keyMap={};
     labs.forEach(r=>{
       if(!r.key||r.value===''||r.value===null||r.value===undefined) return;
-      const val=parseFloat(r.value); if(isNaN(val)) return;
+      const val=parseVal(r.value); if(isNaN(val)) return;
       if(!keyMap[r.key]) keyMap[r.key]=[];
       keyMap[r.key].push({_d:parseDate(r.date),val,lbl:fmtMD(r.date)});
     });
@@ -2319,8 +2341,13 @@
           <canvas id="${cardId}" height="100"></canvas>`;
         section.appendChild(card);
         requestAnimationFrame(()=>{
-          renderLabChart(cardId,rows.map(r=>r.lbl),rows.map(r=>r.val),color,`${color}15`,'line',{
-            scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y}}
+          const vals=rows.map(r=>r.val);
+          const posVals=vals.filter(v=>v>0);
+          const useLog=posVals.length===vals.length&&posVals.length>1&&Math.max(...posVals)/Math.min(...posVals)>20;
+          renderLabChart(cardId,rows.map(r=>r.lbl),vals,color,`${color}15`,'line',{
+            scales:{...chartDefaults.scales,y:useLog
+              ?{type:'logarithmic',grid:{color:'#F1F5F9'},ticks:{font:{size:9},color:'#94A3B8',callback(v){return v>=1000?v/1000+'k':v;}}}
+              :{...chartDefaults.scales.y}}
           });
         });
       });

@@ -1641,21 +1641,56 @@
   let _inoChart = null;
   const _mmCharts = {}, _labCharts = {};
 
+  // ─── 날짜 기반 x픽셀 보간 ───
+  function getXByDate(targetD, inoPixels) {
+    if (!inoPixels.length) return null;
+    if (inoPixels.length === 1) return inoPixels[0].x;
+    let bi = -1;
+    for (let i = 0; i < inoPixels.length; i++) {
+      if (inoPixels[i]._d <= targetD) bi = i;
+      else break;
+    }
+    if (bi < 0) {
+      // 첫 이노크라스 이전: 첫 두 점으로 외삽
+      const p0 = inoPixels[0], p1 = inoPixels[1];
+      const r = (targetD - p0._d) / (p1._d - p0._d);
+      return Math.max(p0.x + (p1.x - p0.x) * r, inoPixels[0].x - 20);
+    }
+    if (bi >= inoPixels.length - 1) {
+      // 마지막 이노크라스 이후: 마지막 두 점으로 외삽
+      const p0 = inoPixels[inoPixels.length-2], p1 = inoPixels[inoPixels.length-1];
+      const r = (targetD - p0._d) / (p1._d - p0._d);
+      return Math.min(p0.x + (p1.x - p0.x) * r, inoPixels[inoPixels.length-1].x + 20);
+    }
+    const p0 = inoPixels[bi], p1 = inoPixels[bi+1];
+    const r = (targetD - p0._d) / (p1._d - p0._d);
+    return p0.x + (p1.x - p0.x) * r;
+  }
+
   // ─── 이노크라스 플러그인 빌더 ───
-  function buildInoPlugin(uData, bMap, cTick) {
+  // inoDatesArr: [{_d, date}] — x축 기준점
+  // allChemo: [{drug, _d}] — 전체 항암 이벤트
+  function buildInoPlugin(uData, bMap, inoDatesArr, allChemo) {
     return {
       id: 'inoOverlay',
       afterDraw(chart) {
         const ctx = chart.ctx, xA = chart.scales.x, yA = chart.scales.y;
-        Object.entries(cTick).forEach(([i, name]) => {
-          const x = xA.getPixelForValue(+i);
-          // 색상: BCG=보라, 키트루다=파랑, 복합=주황
-          const col = name.includes('BCG')&&name.includes('키트루다')?'rgba(245,158,11,.5)'
-            : name.includes('BCG')?'rgba(124,58,237,.35)'
-            : 'rgba(59,130,246,.35)';
+        // 이노크라스 날짜별 x픽셀 매핑
+        const inoPixels = inoDatesArr.map((d,i) => ({ x: xA.getPixelForValue(i), _d: d._d }));
+
+        // 전체 항암 이벤트 수직선
+        allChemo.forEach(({drug, _d}) => {
+          const x = getXByDate(_d, inoPixels);
+          if (x === null) return;
+          const hasBCG = drug.includes('BCG'), hasKit = drug.includes('키트루다');
+          const col = hasBCG && hasKit ? 'rgba(245,158,11,.55)'
+            : hasBCG ? 'rgba(124,58,237,.45)'
+            : 'rgba(59,130,246,.45)';
           ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
           ctx.beginPath(); ctx.moveTo(x,yA.top); ctx.lineTo(x,yA.bottom); ctx.stroke(); ctx.restore();
         });
+
+        // ND/D 혈액 배지
         Object.entries(bMap).forEach(([i,det]) => {
           const x = xA.getPixelForValue(+i), y = yA.top+11, w=det?10:16, h=13, r=3;
           ctx.save(); ctx.fillStyle=det?'#FEE2E2':'#DCFCE7';
@@ -1666,23 +1701,27 @@
           ctx.fillStyle=det?'#DC2626':'#059669'; ctx.font='bold 7px -apple-system,sans-serif';
           ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(det?'D':'ND',x,y); ctx.restore();
         });
+
+        // 이노크라스 수치 라벨
         uData.forEach((val,idx) => {
           if (val===null) return;
           const x=xA.getPixelForValue(idx), y=yA.getPixelForValue(val);
           ctx.save(); ctx.fillStyle='#EA580C'; ctx.font='bold 9px -apple-system,sans-serif';
-          ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(val,x,y-5); ctx.restore();
+          ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(val>=1000?(val/1000).toFixed(0)+'k':val,x,y-5); ctx.restore();
         });
       }
     };
   }
 
   // ─── 이노크라스 차트 렌더 ───
-  function renderInocrasChart(labels, uData, bMap, cTick) {
+  // inoDatesArr: [{date,_d}], uData: number|null[], bMap: {idx:bool}, allChemo: [{drug,_d}]
+  function renderInocrasChart(inoDatesArr, uData, bMap, allChemo) {
     const el = document.getElementById('inocrasChart');
     if (!el) return;
     if (_inoChart) { _inoChart.destroy(); _inoChart = null; }
+    const labels = inoDatesArr.map(d=>fmtMD(d.date));
     _inoChart = new Chart(el, {
-      type:'line', plugins:[buildInoPlugin(uData,bMap,cTick)],
+      type:'line', plugins:[buildInoPlugin(uData,bMap,inoDatesArr,allChemo)],
       data:{ labels, datasets:[{ label:'소변 수치', data:uData,
         borderColor:'#F97316', backgroundColor:'rgba(249,115,22,.1)',
         fill:true, tension:.4, spanGaps:true,
@@ -1691,10 +1730,7 @@
         plugins:{legend:{display:false},tooltip:{filter:i=>i.raw!==null}},
         scales:{
           x:{ grid:{display:false}, ticks:{
-            font: ctx=>({size:7,weight:cTick[ctx.index]?'700':'400'}),
-            color: ctx=>cTick[ctx.index]?'#3B82F6':'#94A3B8',
-            maxRotation:0, minRotation:0,
-            callback(val,idx){ return cTick[idx]?[cTick[idx],labels[idx]]:labels[idx]; }
+            font:{size:7}, color:'#94A3B8', maxRotation:0, minRotation:0
           }},
           y:{type:'logarithmic',grid:{color:'#F1F5F9'},ticks:{font:{size:9},color:'#94A3B8',callback(v){return v>=1000?v/1000+'k':v;}}}
         }
@@ -1735,8 +1771,7 @@
   // STATIC INIT (즉시 표시)
   // ═══════════════════════════════════════════════════════════
   function initStaticCharts() {
-    renderInocrasChart(inoLabels, urineData, bloodMap, chemoTick);
-    // 미니 마커는 실제 Sheets 데이터 로드 후 applyLabs에서만 렌더링
+    // 이노크라스·미니마커 모두 실제 Sheets 데이터 로드 후 렌더링
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1883,39 +1918,25 @@
     const inoRows=labs.filter(r=>String(r.key).startsWith('Inocras_'))
       .map(r=>({...r,_d:parseDate(r.date)})).sort((a,b)=>a._d-b._d);
     if(inoRows.length){
-      // 이노크라스 측정 날짜
+      // x축 = 이노크라스 측정 날짜만 (고유 날짜, 정렬)
       const inoDates=[...new Set(inoRows.map(r=>r.date))].sort((a,b)=>parseDate(a)-parseDate(b));
-      // 항암 날짜 (BCG, 키트루다)
-      const chemoRows=schedule
-        .filter(e=>e.type==='항암')
-        .map(e=>({...e,_d:parseDate(e.date)}))
-        .sort((a,b)=>a._d-b._d);
-      // 통합 타임라인: 이노크라스 날짜 + 항암 날짜 합산 후 정렬, 이노크라스 기준 7일 이내는 병합
-      const combined=[];
-      const inoDateObjs=inoDates.map(d=>({date:d,_d:parseDate(d),isIno:true}));
-      chemoRows.forEach(c=>{
-        // 이노크라스 날짜와 7일 이내면 병합(이노크라스 날짜 우선)
-        const near=inoDateObjs.find(i=>Math.abs(i._d-c._d)<=7*86400000);
-        if(near){ if(!near.chemos) near.chemos=[]; near.chemos.push(c.drug||c.title); }
-        else combined.push({date:c.date,_d:c._d,isChemo:true,drug:c.drug||c.title});
-      });
-      const all=[...inoDateObjs,...combined].sort((a,b)=>a._d-b._d);
-      const labels=all.map(d=>fmtMD(d.date));
-      const uMap={},bMap={};
+      const inoDatesArr=inoDates.map(d=>({date:d,_d:parseDate(d)}));
+      // uData / bMap: 이노크라스 측정값 (x축 인덱스 기준)
+      const uData=inoDatesArr.map(()=>null);
+      const bMap={};
       inoRows.forEach(r=>{
-        const idx=all.findIndex(d=>d.isIno&&d.date===r.date);
+        const idx=inoDates.indexOf(r.date);
         if(idx<0) return;
-        if(r.key==='Inocras_소변') uMap[idx]=parseVal(r.value)||null;
+        if(r.key==='Inocras_소변') uData[idx]=parseVal(r.value)||null;
         if(r.key==='Inocras_혈액') bMap[idx]=(+r.value===1);
       });
-      const uData=all.map((_,i)=>uMap[i]!==undefined?uMap[i]:null);
-      // cTick 빌드: 항암 이름 표시 (이노크라스 날짜에 병합된 항암 포함)
-      const cTick={};
-      all.forEach((d,i)=>{
-        if(d.isChemo) cTick[i]=d.drug;
-        else if(d.chemos?.length) cTick[i]=d.chemos.join('+');
-      });
-      renderInocrasChart(labels,uData,bMap,cTick);
+      // 전체 항암 이벤트 (BCG + 키트루다 전부, 날짜 기반 수직선)
+      const allChemo=schedule
+        .filter(e=>e.type==='항암')
+        .map(e=>({drug:e.drug||e.title,_d:parseDate(e.date)}))
+        .filter(e=>e._d)
+        .sort((a,b)=>a._d-b._d);
+      renderInocrasChart(inoDatesArr,uData,bMap,allChemo);
     }
 
     // ── 주요 수치 카드 (홈 탭) ──

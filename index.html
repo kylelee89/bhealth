@@ -1129,7 +1129,7 @@
             <div class="ino-leg-item"><span class="ino-leg-badge nd">ND</span>혈액 미검출</div>
             <div class="ino-leg-item"><span class="ino-leg-badge d">D</span>혈액 검출</div>
           </div>
-          <canvas id="inocrasChart" height="140"></canvas>
+          <canvas id="inocrasChart" height="170"></canvas>
         </div>
 
         <!-- ── 주요 방광암 표지자 ── -->
@@ -1687,12 +1687,13 @@
         borderColor:'#F97316', backgroundColor:'rgba(249,115,22,.1)',
         fill:true, tension:.4, spanGaps:true,
         pointRadius:uData.map(v=>v!==null?4:0), pointBackgroundColor:'#F97316' }] },
-      options:{ responsive:true, layout:{padding:{top:26}},
+      options:{ responsive:true, layout:{padding:{top:26, bottom:4}},
         plugins:{legend:{display:false},tooltip:{filter:i=>i.raw!==null}},
         scales:{
           x:{ grid:{display:false}, ticks:{
-            font: ctx=>({size:8,weight:cTick[ctx.index]?'700':'400'}),
+            font: ctx=>({size:7,weight:cTick[ctx.index]?'700':'400'}),
             color: ctx=>cTick[ctx.index]?'#3B82F6':'#94A3B8',
+            maxRotation:0, minRotation:0,
             callback(val,idx){ return cTick[idx]?[cTick[idx],labels[idx]]:labels[idx]; }
           }},
           y:{type:'logarithmic',grid:{color:'#F1F5F9'},ticks:{font:{size:9},color:'#94A3B8',callback(v){return v>=1000?v/1000+'k':v;}}}

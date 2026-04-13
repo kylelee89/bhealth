@@ -1051,9 +1051,65 @@
         border-left: none; border-right: none;
       }
     }
+  /* ── PIN 잠금 화면 ── */
+  #pinOverlay {
+    position:fixed; inset:0; z-index:9999;
+    background:linear-gradient(160deg,#1E3A8A 0%,#1e40af 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:32px; transition:opacity .3s;
+  }
+  #pinOverlay.hidden { opacity:0; pointer-events:none; }
+  .pin-logo { font-size:40px; }
+  .pin-title { color:#fff; font-size:20px; font-weight:800; letter-spacing:.5px; }
+  .pin-dots { display:flex; gap:14px; }
+  .pin-dot {
+    width:14px; height:14px; border-radius:50%;
+    border:2px solid rgba(255,255,255,.6);
+    background:transparent; transition:background .15s;
+  }
+  .pin-dot.filled { background:#fff; border-color:#fff; }
+  .pin-error { color:#FCA5A5; font-size:13px; font-weight:600; min-height:18px; }
+  .pin-keypad { display:grid; grid-template-columns:repeat(3,72px); gap:12px; }
+  .pin-key {
+    height:72px; border-radius:50%; border:none; outline:none;
+    background:rgba(255,255,255,.12); color:#fff;
+    font-size:22px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .1s; -webkit-tap-highlight-color:transparent;
+  }
+  .pin-key:active { background:rgba(255,255,255,.3); }
+  .pin-key.del { font-size:18px; }
+  .pin-key.empty { background:transparent; pointer-events:none; }
   </style>
 </head>
 <body>
+
+<!-- ── PIN 잠금 화면 ── -->
+<div id="pinOverlay">
+  <div class="pin-logo">🔒</div>
+  <div class="pin-title">내 건강 기록</div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-error" id="pinError"></div>
+  <div class="pin-keypad">
+    <button class="pin-key" onclick="pinInput('1')">1</button>
+    <button class="pin-key" onclick="pinInput('2')">2</button>
+    <button class="pin-key" onclick="pinInput('3')">3</button>
+    <button class="pin-key" onclick="pinInput('4')">4</button>
+    <button class="pin-key" onclick="pinInput('5')">5</button>
+    <button class="pin-key" onclick="pinInput('6')">6</button>
+    <button class="pin-key" onclick="pinInput('7')">7</button>
+    <button class="pin-key" onclick="pinInput('8')">8</button>
+    <button class="pin-key" onclick="pinInput('9')">9</button>
+    <button class="pin-key empty"></button>
+    <button class="pin-key" onclick="pinInput('0')">0</button>
+    <button class="pin-key del" onclick="pinDelete()">⌫</button>
+  </div>
+</div>
 
 <div class="app-wrapper">
 
@@ -2503,6 +2559,54 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
+
+  // ── PIN 잠금 ──
+  (function() {
+    const CORRECT = '2525';
+    const KEY = 'pin_unlocked';
+    let entered = '';
+    const overlay = document.getElementById('pinOverlay');
+
+    function updateDots() {
+      for (let i = 0; i < 4; i++) {
+        document.getElementById('pd' + i).classList.toggle('filled', i < entered.length);
+      }
+    }
+
+    function unlock() {
+      overlay.classList.add('hidden');
+      sessionStorage.setItem(KEY, '1');
+      setTimeout(() => { overlay.style.display = 'none'; }, 300);
+    }
+
+    window.pinInput = function(d) {
+      if (entered.length >= 4) return;
+      entered += d;
+      updateDots();
+      if (entered.length === 4) {
+        if (entered === CORRECT) {
+          unlock();
+        } else {
+          document.getElementById('pinError').textContent = '비밀번호가 틀렸습니다';
+          setTimeout(() => {
+            entered = '';
+            updateDots();
+            document.getElementById('pinError').textContent = '';
+          }, 800);
+        }
+      }
+    };
+
+    window.pinDelete = function() {
+      entered = entered.slice(0, -1);
+      updateDots();
+    };
+
+    // 이미 이 세션에서 잠금 해제했으면 바로 통과
+    if (sessionStorage.getItem(KEY) === '1') {
+      overlay.style.display = 'none';
+    }
+  })();
 </script>
 </body>
 </html>

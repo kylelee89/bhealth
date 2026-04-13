@@ -1795,7 +1795,7 @@
   }
 
   // ─── 이노크라스 차트 렌더 ───
-  function renderInocrasChart(labels, uData, bMap, cTick) {
+  function renderInocrasChart(labels, uData, bMap, cTick, yearData=[]) {
     const el = document.getElementById('inocrasChart');
     if (!el) return;
     if (_inoChart) { _inoChart.destroy(); _inoChart = null; }
@@ -1811,7 +1811,12 @@
           x:{ grid:{display:false}, ticks:{
             font:{size:6}, color:'#94A3B8',
             maxRotation:0, minRotation:0, autoSkip:true, maxTicksLimit:10,
-            callback(val,idx){ return labels[idx]; }
+            callback(val,idx,ticks){
+              const yr=yearData[idx];
+              const pos=ticks.findIndex(t=>t.value===idx);
+              const showYr=pos<=0||(yearData[ticks[pos-1].value]!==yr);
+              return showYr?[labels[idx],`'${String(yr).slice(2)}`]:labels[idx];
+            }
           }},
           y:{type:'logarithmic',grid:{color:'#F1F5F9'},ticks:{font:{size:8},color:'#94A3B8',
             callback(v){ const l=Math.log10(v); return Math.abs(l-Math.round(l))<0.01?v.toLocaleString():null; }}}
@@ -2015,6 +2020,7 @@
       });
       const all=Object.values(dateMap).sort((a,b)=>a._d-b._d);
       const labels=all.map(d=>fmtMD(d.date));
+      const yearData=all.map(d=>d._d.getFullYear());
       const uData=all.map(()=>null);
       const bMap={}, cTick={};
       inoRows.forEach(r=>{
@@ -2024,7 +2030,7 @@
         if(r.key==='Inocras_혈액') bMap[idx]=(+r.value===1);
       });
       all.forEach((d,i)=>{ if(d.drugs.length) cTick[i]=d.drugs.join('+'); });
-      renderInocrasChart(labels,uData,bMap,cTick);
+      renderInocrasChart(labels,uData,bMap,cTick,yearData);
     }
 
     // ── 주요 수치 카드 (홈 탭) ──

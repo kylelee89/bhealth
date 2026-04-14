@@ -992,7 +992,7 @@
     .mm-right {
       flex: 1;
       min-width: 0;
-      height: 68px;
+      height: 80px;
     }
     .mm-header {
       display: flex;
@@ -1848,12 +1848,12 @@
           const yr=date.getFullYear();
           if(yr!==lastYr){
             lastYr=yr;
-            const x=xA.getPixelForValue(di), y=chart.chartArea.bottom+14;
+            const x=xA.getPixelForValue(di);
             ctx.save();
-            ctx.font='bold 6px -apple-system,sans-serif';
+            ctx.font='bold 7px -apple-system,sans-serif';
             ctx.fillStyle='#94A3B8';
-            ctx.textAlign='center'; ctx.textBaseline='top';
-            ctx.fillText(`'${String(yr).slice(2)}`,x,y);
+            ctx.textAlign='center'; ctx.textBaseline='bottom';
+            ctx.fillText(`'${String(yr).slice(2)}`,x, chart.height-2);
             ctx.restore();
           }
         });
@@ -1864,6 +1864,7 @@
       data:{ labels: showX ? labels : d.map((_,i)=>i), datasets:[{ data:d, borderColor:c, backgroundColor:bg, fill, tension:.4, pointRadius:2.5, borderWidth:2 }] },
       options:{ responsive:true, maintainAspectRatio:false, animation:false,
         plugins:{legend:{display:false},tooltip:{enabled:false}},
+        layout:{padding:{bottom:10}},
         scales:{
           x:{ display:showX, ticks:{ font:{size:7}, color:'#94A3B8', maxRotation:0, autoSkip:true, maxTicksLimit:3 }, grid:{display:false}, border:{display:false} },
           y:{ display:false }
@@ -1884,30 +1885,32 @@
         const ctx=chart.ctx, xA=chart.scales.x;
         if(!xA) return;
         let lastYr=null;
-        xA.ticks.forEach((tick,pos)=>{
-          const di = tick.value; // 데이터 인덱스
-          const d = dates[di];
+        xA.ticks.forEach(tick=>{
+          const di=tick.value, d=dates[di];
           if(!d) return;
-          const yr = d.getFullYear();
+          const yr=d.getFullYear();
           if(yr!==lastYr){
             lastYr=yr;
             const x=xA.getPixelForValue(di);
-            const y=chart.chartArea.bottom+22;
             ctx.save();
-            ctx.font=`bold 8px -apple-system,sans-serif`;
+            ctx.font='bold 8px -apple-system,sans-serif';
             ctx.fillStyle='#94A3B8';
-            ctx.textAlign='center';
-            ctx.textBaseline='top';
-            ctx.fillText(`'${String(yr).slice(2)}`, x, y);
+            ctx.textAlign='center'; ctx.textBaseline='bottom';
+            ctx.fillText(`'${String(yr).slice(2)}`, x, chart.height-2);
             ctx.restore();
           }
         });
       }
     } : null;
+    const mergedOpts = {
+      ...chartDefaults, ...opts,
+      layout:{ padding:{ bottom: 12 } },
+      scales:{...chartDefaults.scales,...(opts?.scales||{})}
+    };
     _labCharts[id] = new Chart(el, {
       type: type||'line',
       data:{ labels, datasets:[{ data, borderColor:color, backgroundColor:bg, fill:!!bg, tension:.4 }] },
-      options:{ ...chartDefaults, ...opts, scales:{...chartDefaults.scales,...(opts?.scales||{})} },
+      options: mergedOpts,
       plugins: yearPlugin ? [yearPlugin] : []
     });
   }
@@ -2511,7 +2514,7 @@
               ${changeText?`<div class="change ${changeClass}">${changeText}</div>`:''}
             </div>
           </div>
-          <canvas id="${cardId}" height="110"></canvas>`;
+          <canvas id="${cardId}" height="118"></canvas>`;
         section.appendChild(card);
         requestAnimationFrame(()=>{
           const vals=rows.map(r=>r.val);

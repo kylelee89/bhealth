@@ -1644,6 +1644,17 @@
     elements: { point: { radius: 3, hoverRadius: 5 } }
   };
 
+  // 연도 표시 틱 콜백 생성기 (labels: M/D 문자열[], dates: Date[])
+  function makeYearCb(labels, dates) {
+    return function(val, idx, ticks) {
+      const yr = dates[idx]?.getFullYear();
+      if (!yr) return labels[idx] ?? val;
+      const pos = ticks.findIndex(t => t.value === idx);
+      const prevYr = pos > 0 ? dates[ticks[pos-1]?.value]?.getFullYear() : null;
+      return (prevYr !== yr) ? [labels[idx], `'${String(yr).slice(2)}`] : labels[idx];
+    };
+  }
+
   function parseDate(s) {
     if (!s) return null;
     if (s instanceof Date) return s;
@@ -1811,12 +1822,7 @@
           x:{ grid:{display:false}, ticks:{
             font:{size:6}, color:'#94A3B8',
             maxRotation:0, minRotation:0, autoSkip:true, maxTicksLimit:10,
-            callback(val,idx,ticks){
-              const yr=yearData[idx];
-              const pos=ticks.findIndex(t=>t.value===idx);
-              const showYr=pos<=0||(yearData[ticks[pos-1].value]!==yr);
-              return showYr?[labels[idx],`'${String(yr).slice(2)}`]:labels[idx];
-            }
+            callback: makeYearCb(labels, yearData.map(y=>new Date(y,0,1)))
           }},
           y:{type:'logarithmic',grid:{color:'#F1F5F9'},ticks:{font:{size:8},color:'#94A3B8',
             callback(v){ const l=Math.log10(v); return Math.abs(l-Math.round(l))<0.01?v.toLocaleString():null; }}}
@@ -1826,10 +1832,33 @@
   }
 
   // ─── 미니 마커 차트 ───
-  function renderMiniChart(id, d, c, bg, fill, labels=[]) {
+  function renderMiniChart(id, d, c, bg, fill, labels=[], dates=[]) {
     const el = document.getElementById(id); if (!el) return;
     if (_mmCharts[id]) { _mmCharts[id].destroy(); delete _mmCharts[id]; }
     const showX = labels.length > 0;
+    const mmYearPlugin = (showX && dates.length) ? {
+      id:'mmYear_'+id,
+      afterDraw(chart){
+        const ctx=chart.ctx, xA=chart.scales.x;
+        if(!xA) return;
+        let lastYr=null;
+        xA.ticks.forEach(tick=>{
+          const di=tick.value, date=dates[di];
+          if(!date) return;
+          const yr=date.getFullYear();
+          if(yr!==lastYr){
+            lastYr=yr;
+            const x=xA.getPixelForValue(di), y=chart.chartArea.bottom+14;
+            ctx.save();
+            ctx.font='bold 6px -apple-system,sans-serif';
+            ctx.fillStyle='#94A3B8';
+            ctx.textAlign='center'; ctx.textBaseline='top';
+            ctx.fillText(`'${String(yr).slice(2)}`,x,y);
+            ctx.restore();
+          }
+        });
+      }
+    } : null;
     _mmCharts[id] = new Chart(el, {
       type:'line',
       data:{ labels: showX ? labels : d.map((_,i)=>i), datasets:[{ data:d, borderColor:c, backgroundColor:bg, fill, tension:.4, pointRadius:2.5, borderWidth:2 }] },
@@ -1839,18 +1868,47 @@
           x:{ display:showX, ticks:{ font:{size:7}, color:'#94A3B8', maxRotation:0, autoSkip:true, maxTicksLimit:3 }, grid:{display:false}, border:{display:false} },
           y:{ display:false }
         },
-        elements:{point:{radius:2.5},line:{borderWidth:2}} }
+        elements:{point:{radius:2.5},line:{borderWidth:2}} },
+      plugins: mmYearPlugin ? [mmYearPlugin] : []
     });
   }
 
   // ─── 검진수치 탭 차트 ───
-  function renderLabChart(id, labels, data, color, bg, type, opts) {
+  function renderLabChart(id, labels, data, color, bg, type, opts, dates=[]) {
     const el = document.getElementById(id); if (!el) return;
     if (_labCharts[id]) { _labCharts[id].destroy(); }
+    // 연도 표시 afterDraw 플러그인
+    const yearPlugin = dates.length ? {
+      id:'yearLabel_'+id,
+      afterDraw(chart) {
+        const ctx=chart.ctx, xA=chart.scales.x;
+        if(!xA) return;
+        let lastYr=null;
+        xA.ticks.forEach((tick,pos)=>{
+          const di = tick.value; // 데이터 인덱스
+          const d = dates[di];
+          if(!d) return;
+          const yr = d.getFullYear();
+          if(yr!==lastYr){
+            lastYr=yr;
+            const x=xA.getPixelForValue(di);
+            const y=chart.chartArea.bottom+22;
+            ctx.save();
+            ctx.font=`bold 8px -apple-system,sans-serif`;
+            ctx.fillStyle='#94A3B8';
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
+            ctx.fillText(`'${String(yr).slice(2)}`, x, y);
+            ctx.restore();
+          }
+        });
+      }
+    } : null;
     _labCharts[id] = new Chart(el, {
       type: type||'line',
       data:{ labels, datasets:[{ data, borderColor:color, backgroundColor:bg, fill:!!bg, tension:.4 }] },
-      options:{ ...chartDefaults, ...opts }
+      options:{ ...chartDefaults, ...opts, scales:{...chartDefaults.scales,...(opts?.scales||{})} },
+      plugins: yearPlugin ? [yearPlugin] : []
     });
   }
 
@@ -2106,7 +2164,8 @@
       else if(!isNaN(mn)) status=latest<mn?'warn':'ok';
       else if(!isNaN(mx)) status=latest>mx?'warn':'ok';
       const mmLabels=rows.map(r=>fmtMD(r._d.toISOString().slice(0,10)));
-      renderMiniChart(mmIds[i],d,mmColors[i],'transparent',false,mmLabels);
+      const mmDates=rows.map(r=>r._d);
+      renderMiniChart(mmIds[i],d,mmColors[i],'transparent',false,mmLabels,mmDates);
       if(card){
         const ve=card.querySelector('.mm-val'), ue=card.querySelector('.mm-unit'), le=card.querySelector('.mm-latest');
         const de=card.querySelector('.mm-date');
@@ -2452,7 +2511,7 @@
               ${changeText?`<div class="change ${changeClass}">${changeText}</div>`:''}
             </div>
           </div>
-          <canvas id="${cardId}" height="100"></canvas>`;
+          <canvas id="${cardId}" height="110"></canvas>`;
         section.appendChild(card);
         requestAnimationFrame(()=>{
           const vals=rows.map(r=>r.val);
@@ -2462,7 +2521,7 @@
             scales:{...chartDefaults.scales,y:useLog
               ?{type:'logarithmic',grid:{color:'#F1F5F9'},ticks:{font:{size:9},color:'#94A3B8',callback(v){return v>=1000?v/1000+'k':v;}}}
               :{...chartDefaults.scales.y}}
-          });
+          }, rows.map(r=>r._d));
         });
       });
       container.appendChild(section);
